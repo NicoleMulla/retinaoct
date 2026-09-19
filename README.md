@@ -12,13 +12,13 @@ running record of how it was all provisioned.
 
 | Component | State | Notes |
 |---|:--:|---|
-| Domain + DNS zone | ✅ | `retinaoct.com`, Cloudflare Registrar, zone active |
+| Domain + DNS zone | ✅ | apex + `www` resolving, TLS active |
 | Secrets management | ✅ | Doppler project `retinaoct`, bound to `dev` |
 | Local tooling | ✅ | node, wrangler, rclone, doppler, gh, git |
 | Repository | ✅ | this repo |
 | B2 bucket + credentials | ✅ | `retinaoct` private, `us-east-005`, round-trip verified |
 | Cloudflare DNS token | ✅ | `retinaoct-deploy`, all permissions verified |
-| Website | ✅ | placeholder landing page live at `retinaoct.pages.dev` |
+| Website | ✅ | live at **https://retinaoct.com** |
 | Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
 | B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
 
@@ -34,7 +34,7 @@ running record of how it was all provisioned.
                                    │
                 ┌──────────────────┴──────────────────┐
                 ▼                                     ▼
-       retinaoct.com                        images.retinaoct.com
+   retinaoct.com + www                      images.retinaoct.com
        Cloudflare Pages                              │
        retinaoct.pages.dev                           ▼
                                           ┌──────────────────────┐

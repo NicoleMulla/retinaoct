@@ -16,7 +16,7 @@ Last updated: 2026-09-19
 | Local tooling | ✅ Installed |
 | Repo | ✅ github.com/NicoleMulla/retinaoct (public) |
 | Website | ✅ Placeholder landing page deployed |
-| DNS records | ✅ Unblocked — token verified; zone currently empty |
+| DNS records | ✅ Apex + www CNAME, proxied |
 
 ---
 
@@ -188,8 +188,43 @@ Placeholder landing page — static, no dependencies, no build step.
 - Carries a research-use-only disclaimer and states no patient-identifiable
   data is published
 
-Custom domain `retinaoct.com` is **not yet attached** — the zone still has
-zero DNS records.
+### Live — 2026-09-19
+
+| URL | Status |
+|---|---|
+| https://retinaoct.com | ✅ 200 |
+| https://www.retinaoct.com | ✅ 200 |
+| https://retinaoct.pages.dev | ✅ 200 |
+
+`http://` → `https://` returns 301. Served over HTTP/2 by Cloudflare.
+
+**DNS records**
+
+```
+CNAME  retinaoct.com      -> retinaoct.pages.dev   proxied
+CNAME  www.retinaoct.com  -> retinaoct.pages.dev   proxied
+```
+
+The apex CNAME works because Cloudflare flattens CNAMEs at the apex. Both are
+proxied, which is also what routes traffic through Cloudflare — the same
+mechanism that will make B2 egress free once `images.retinaoct.com` is added.
+
+**TLS:** Universal SSL wildcard, `CN=retinaoct.com`, SANs `*.retinaoct.com`
+and `retinaoct.com`. Issued by Google Trust Services.
+
+**Gotcha seen during setup:** querying a hostname *before* creating its DNS
+record caches an NXDOMAIN locally. This zone's SOA minimum is **1800s**, so a
+new subdomain can appear broken from your own machine for up to 30 minutes
+while working fine everywhere else. Verify against the authoritative
+nameserver before assuming a real failure:
+
+```bash
+dig @amit.ns.cloudflare.com +short www.retinaoct.com
+curl --resolve www.retinaoct.com:443:172.67.208.14 https://www.retinaoct.com
+```
+
+The Pages API may also report a custom domain as `status=pending` after it is
+already serving correctly — its validation is asynchronous and lags reality.
 
 ### Deploying
 

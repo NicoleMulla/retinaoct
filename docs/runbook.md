@@ -133,3 +133,6 @@ git diff --cached --name-only     # confirm nothing sensitive is staged
 | DNS record creation fails | Using OAuth (`zone (read)` only) instead of the scoped token |
 | B2 `401 unauthorized` | Key scoped to a different bucket, or expired |
 | Egress charges appearing | Traffic bypassing Cloudflare and hitting B2 directly |
+| New subdomain won't resolve locally but works elsewhere | Cached NXDOMAIN — this zone's negative TTL is 1800s. Check `dig @amit.ns.cloudflare.com +short <host>` before debugging further. |
+| Pages domain stuck `status=pending` but site serves fine | Validation is async and lags. Trust the HTTP response. |
+| `HTTP 522` right after attaching a domain | Certificate still issuing. Resolves on its own in a few minutes. |
