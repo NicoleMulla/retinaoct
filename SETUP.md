@@ -15,7 +15,7 @@ Last updated: 2026-09-19
 | Secrets management | ✅ Doppler project created and bound |
 | Local tooling | ✅ Installed |
 | Repo | ✅ github.com/NicoleMulla/retinaoct (public) |
-| Website | ❌ Not started — scope undecided |
+| Website | ✅ Placeholder landing page deployed |
 | DNS records | ✅ Unblocked — token verified; zone currently empty |
 
 ---
@@ -175,6 +175,38 @@ data. `.gitignore` covers the common paths — verify before each push.
 
 rclone via Homebrew omits `mount` on macOS (needs FUSE) — use `nfsmount`.
 `sync`/`copy` are unaffected.
+
+---
+
+## Website
+
+Placeholder landing page — static, no dependencies, no build step.
+
+- Source: `public/` · Live: **https://retinaoct.pages.dev**
+- Pages project `retinaoct`, production branch `main`
+- Describes the planned features: browse scans, search metadata, export
+- Carries a research-use-only disclaimer and states no patient-identifiable
+  data is published
+
+Custom domain `retinaoct.com` is **not yet attached** — the zone still has
+zero DNS records.
+
+### Deploying
+
+```bash
+doppler run -- wrangler pages deploy public --project-name retinaoct \
+  --branch main --commit-dirty=true
+```
+
+**Gotcha:** `wrangler pages project create` fails on wrangler 4.135 — Pages
+commands now delegate to the Workers platform and that subcommand has no
+assets directory to target. The project was created through the REST API
+instead (`POST /accounts/{id}/pages/projects`). `pages deploy` works normally
+once the project exists.
+
+Note also that the scoped token grants `Cloudflare Pages: Edit` but **not**
+`Workers Scripts: Edit`, so migrating this to Workers Static Assets would
+require adding that permission.
 
 ---
 

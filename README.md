@@ -18,7 +18,7 @@ running record of how it was all provisioned.
 | Repository | ✅ | this repo |
 | B2 bucket + credentials | ✅ | `retinaoct` private, `us-east-005`, round-trip verified |
 | Cloudflare DNS token | ✅ | `retinaoct-deploy`, all permissions verified |
-| Website | ⬜ | scope not yet decided |
+| Website | ✅ | placeholder landing page live at `retinaoct.pages.dev` |
 | Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
 | B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
 
@@ -36,7 +36,7 @@ running record of how it was all provisioned.
                 ▼                                     ▼
        retinaoct.com                        images.retinaoct.com
        Cloudflare Pages                              │
-       (site — TBD)                                  ▼
+       retinaoct.pages.dev                           ▼
                                           ┌──────────────────────┐
                                           │    Backblaze B2      │
                                           │  region us-east-005  │
@@ -61,6 +61,10 @@ reversible at low cost if requirements change.
 
 ```
 .
+├── public/            site source — deployed to Cloudflare Pages
+│   ├── index.html
+│   ├── styles.css
+│   └── favicon.svg
 ├── README.md          you are here — overview and status
 ├── SETUP.md           detailed provisioning log, decisions, and rationale
 ├── docs/

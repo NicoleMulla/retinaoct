@@ -74,7 +74,8 @@ doppler run -- rclone check ./scans b2:$B2_BUCKET/scans --one-way
 ```bash
 doppler run -- wrangler pages project list       # health check (see note below)
 doppler run -- wrangler pages project list
-doppler run -- wrangler pages deploy ./dist --project-name retinaoct
+doppler run -- wrangler pages deploy public --project-name retinaoct \
+  --branch main --commit-dirty=true
 doppler run -- wrangler deploy                   # Workers
 doppler run -- wrangler tail                     # live logs
 ```
@@ -126,6 +127,8 @@ git diff --cached --name-only     # confirm nothing sensitive is staged
 |---|---|
 | `wrangler whoami` fails on "retrieve account IDs" | **Expected** with the scoped token — it lacks `Account Settings: Read`. Use `wrangler pages project list` as the health check instead. |
 | `rclone: didn't find section in config file` | Doppler secrets missing — run `doppler secrets --only-names` |
+| `wrangler pages project create` fails with "Missing entry-point" | Known on wrangler 4.135 — Pages delegates to Workers. Create the project via the REST API instead. |
+| `The Pages project "retinaoct" does not exist` | Project not created yet — see above. |
 | Cloudflare `Authentication error [10000]` | Token lacks the scope, or OAuth is being used instead of the token |
 | DNS record creation fails | Using OAuth (`zone (read)` only) instead of the scoped token |
 | B2 `401 unauthorized` | Key scoped to a different bucket, or expired |

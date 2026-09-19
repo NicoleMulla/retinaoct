@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Retina OCT — imaging archive</title>
+<meta name="description" content="A searchable archive of retinal optical
+  coherence tomography imaging. Browse scans and query their metadata.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="Retina OCT — imaging archive">
+<meta property="og:description" content="A searchable archive of retinal OCT imaging.">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<header>
+  <div class="wrap bar">
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.6"/>
+        <circle cx="12" cy="12" r="4.4" stroke="currentColor" stroke-width="1.6"
+                opacity="0.55"/>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+      </svg>
+      Retina&nbsp;OCT
+    </div>
+    <span class="tag">Coming soon</span>
+  </div>
+</header>
+
+<main>
+  <section class="wrap hero">
+    <h1>A searchable archive of retinal OCT imaging.</h1>
+    <p class="lede">
+      Browse optical coherence tomography scans and query the metadata behind
+      them — acquisition parameters, device, laterality, study date, and
+      structural measurements — in one place.
+    </p>
+  </section>
+
+  <figure class="wrap scan">
+    <svg viewBox="0 0 900 280" role="img" aria-labelledby="scanTitle scanDesc"
+         preserveAspectRatio="xMidYMid slice">
+      <title id="scanTitle">Stylised optical coherence tomography B-scan</title>
+      <desc id="scanDesc">A cross-section of the retina showing layered bands
+        with a central foveal depression, rendered as an illustration.</desc>
+      <defs>
+        <linearGradient id="vit" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#05070c"/>
+          <stop offset="55%"  stop-color="#0a0d14"/>
+          <stop offset="100%" stop-color="#140d08"/>
+        </linearGradient>
+        <linearGradient id="sweepG" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="#ffc98a" stop-opacity="0"/>
+          <stop offset="50%"  stop-color="#ffc98a" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#ffc98a" stop-opacity="0"/>
+        </linearGradient>
+        <filter id="soft"><feGaussianBlur stdDeviation="1.1"/></filter>
+      </defs>
+
+      <rect width="900" height="280" fill="url(#vit)"/>
+
+      <g fill="none" stroke-linecap="round" filter="url(#soft)">
+      <path d="M 0,78 L 300,78 C 372,78 396,136 450,136 C 504,136 528,78 600,78 L 900,78" stroke="#7fd4e8" stroke-width="2.0" opacity="0.55"/>
+      <path d="M 0,95 L 300,95 C 372,95 396,141 450,141 C 504,141 528,95 600,95 L 900,95" stroke="#f2b872" stroke-width="3.2" opacity="0.5"/>
+      <path d="M 0,110 L 300,110 C 372,110 396,144 450,144 C 504,144 528,110 600,110 L 900,110" stroke="#e8944a" stroke-width="2.4" opacity="0.62"/>
+      <path d="M 0,124 L 300,124 C 372,124 396,145 450,145 C 504,145 528,124 600,124 L 900,124" stroke="#f6c98d" stroke-width="3.0" opacity="0.45"/>
+      <path d="M 0,139 L 300,139 C 372,139 396,147 450,147 C 504,147 528,139 600,139 L 900,139" stroke="#e07b34" stroke-width="2.2" opacity="0.58"/>
+      <path d="M 0,156 L 300,156 C 372,156 396,158 450,158 C 504,158 528,156 600,156 L 900,156" stroke="#ffd9a0" stroke-width="3.6" opacity="0.85"/>
+      <path d="M 0,167 L 900,167" stroke="#ff9f45" stroke-width="4.4" opacity="0.95"/>
+      <path d="M 0,180 L 900,180" stroke="#8a4a22" stroke-width="6.0" opacity="0.4"/>
+      <path d="M 0,196 L 900,196" stroke="#5c3018" stroke-width="9.0" opacity="0.26"/>
+      </g>
+
+      <g class="sweep">
+        <rect x="-160" y="0" width="160" height="280" fill="url(#sweepG)">
+          <animate attributeName="x" from="-160" to="900" dur="7s"
+                   repeatCount="indefinite"/>
+        </rect>
+      </g>
+    </svg>
+    <figcaption>Illustrative B-scan — foveal cross-section</figcaption>
+  </figure>
+
+  <section class="wrap grid">
+    <article class="card">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="3" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
+          <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
+          <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
+          <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
+        </svg>
+        Browse scans
+      </h2>
+      <p>
+        Page through the image library with thumbnail previews, filter by study
+        or device, and open any scan at full resolution.
+      </p>
+      <div class="soon"><span class="dot"></span> In development</div>
+    </article>
+
+    <article class="card">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M15.6 15.6L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        Search metadata
+      </h2>
+      <p>
+        Query across acquisition date, device model, laterality, scan pattern,
+        signal strength, and derived measurements to find the images you need.
+      </p>
+      <div class="soon"><span class="dot"></span> In development</div>
+    </article>
+
+    <article class="card">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3v13.5M12 16.5l-4.3-4.3M12 16.5l4.3-4.3"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                stroke-linejoin="round"/>
+          <path d="M4 20.2h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        Export
+      </h2>
+      <p>
+        Pull a filtered set of images and their metadata as a manifest for
+        downstream analysis or model training.
+      </p>
+      <div class="soon"><span class="dot"></span> Planned</div>
+    </article>
+  </section>
+
+  <section class="wrap preview">
+    <h2>What search will look like</h2>
+    <p>
+      A preview of the interface under construction. Nothing here is live yet —
+      the fields and results below are illustrative.
+    </p>
+
+    <div class="mock" aria-hidden="true">
+      <div class="mock-bar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <circle cx="10.5" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.9"/>
+          <path d="M15.6 15.6L21 21" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+        device:&nbsp;Cirrus&nbsp;&nbsp;·&nbsp;&nbsp;laterality:&nbsp;OD&nbsp;&nbsp;·&nbsp;&nbsp;signal&nbsp;≥&nbsp;7
+      </div>
+      <div class="mock-body">
+        <div class="row">
+          <div><div class="skel w70"></div></div>
+          <span class="chip">macular cube</span>
+        </div>
+        <div class="row">
+          <div><div class="skel w52"></div></div>
+          <span class="chip">5-line raster</span>
+        </div>
+        <div class="row">
+          <div><div class="skel w61"></div></div>
+          <span class="chip">optic disc</span>
+        </div>
+        <div class="row">
+          <span class="row-id">… results pending index build</span>
+          <span class="chip">—</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p class="note">
+    <strong>Research use only.</strong> This site is a placeholder under active
+    development. It is not a medical device and is not intended for diagnosis or
+    treatment decisions. No patient-identifiable data is published here.
+  </p>
+  <div class="foot-row">
+    <span>© 2026 Retina OCT</span>
+    <span>retinaoct.com</span>
+  </div>
+</footer>
+
+</body>
+</html>
