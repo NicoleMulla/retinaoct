@@ -16,7 +16,7 @@ Last updated: 2026-09-19
 | Local tooling | ✅ Installed |
 | Repo | ✅ github.com/NicoleMulla/retinaoct (public) |
 | Website | ❌ Not started — scope undecided |
-| DNS records | ❌ Blocked on scoped API token |
+| DNS records | ✅ Unblocked — token verified; zone currently empty |
 
 ---
 
@@ -89,7 +89,7 @@ and no config files:
 | `RCLONE_CONFIG_B2_ACCOUNT` | → `${BB_KEY_ID}` | ✅ |
 | `RCLONE_CONFIG_B2_KEY` | → `${BB_APPLICATION_KEY}` | ✅ |
 | `B2_BUCKET` | `retinaoct` | ✅ |
-| `CLOUDFLARE_API_TOKEN` | scoped DNS token | ❌ |
+| `CLOUDFLARE_API_TOKEN` | scoped token `retinaoct-deploy` | ✅ |
 
 The two `RCLONE_CONFIG_B2_*` entries are Doppler **secret references**
 (`${BB_KEY_ID}`), not copies. One source of truth; rotating the underlying
@@ -104,6 +104,29 @@ it materializes the `b2:` remote purely from the environment.
 - Use **bucket-scoped** B2 Application Keys, never the account master key.
 - Cloudflare tokens: least privilege + an expiry.
 - Treat any key that has appeared in a chat, screenshot, or shell history as burned.
+
+---
+
+## Cloudflare token — verified 2026-09-19
+
+Token `retinaoct-deploy` (id `9c2ca145306ebacf90c6fe8b64fa7b9a`), status `active`.
+
+| Check | Result |
+|---|---|
+| Token verify endpoint | ✅ active |
+| Zone read | ✅ |
+| DNS read | ✅ (zone has 0 records) |
+| DNS write | ✅ created + deleted a TXT probe |
+| Pages access | ✅ (0 projects) |
+
+**`wrangler whoami` fails with this token — this is expected, not a fault.**
+`whoami` enumerates all accounts, which needs `Account Settings → Read`, a
+permission deliberately excluded. Real operations (`wrangler pages ...`) work
+because they address the account directly via `CLOUDFLARE_ACCOUNT_ID`. Use
+`wrangler pages project list` as the health check instead of `whoami`.
+
+⚠️ **No expiry is set on this token.** It is valid indefinitely until manually
+revoked. Consider adding a TTL via the dashboard.
 
 ---
 

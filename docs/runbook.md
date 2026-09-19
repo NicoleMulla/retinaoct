@@ -72,7 +72,7 @@ doppler run -- rclone check ./scans b2:$B2_BUCKET/scans --one-way
 ## Cloudflare
 
 ```bash
-doppler run -- wrangler whoami                   # verify token + account
+doppler run -- wrangler pages project list       # health check (see note below)
 doppler run -- wrangler pages project list
 doppler run -- wrangler pages deploy ./dist --project-name retinaoct
 doppler run -- wrangler deploy                   # Workers
@@ -124,6 +124,7 @@ git diff --cached --name-only     # confirm nothing sensitive is staged
 
 | Symptom | Likely cause |
 |---|---|
+| `wrangler whoami` fails on "retrieve account IDs" | **Expected** with the scoped token — it lacks `Account Settings: Read`. Use `wrangler pages project list` as the health check instead. |
 | `rclone: didn't find section in config file` | Doppler secrets missing — run `doppler secrets --only-names` |
 | Cloudflare `Authentication error [10000]` | Token lacks the scope, or OAuth is being used instead of the token |
 | DNS record creation fails | Using OAuth (`zone (read)` only) instead of the scoped token |
