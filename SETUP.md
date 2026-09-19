@@ -11,7 +11,7 @@ Last updated: 2026-09-19
 |---|---|
 | Domain | ✅ Registered |
 | Cloudflare account | ✅ Authenticated (Wrangler OAuth) |
-| Backblaze B2 | ⚠️ Account + bucket created; credentials not yet in Doppler |
+| Backblaze B2 | ✅ Bucket `retinaoct` live, auth verified end-to-end |
 | Secrets management | ✅ Doppler project created and bound |
 | Local tooling | ✅ Installed |
 | Repo | ✅ github.com/NicoleMulla/retinaoct (public) |
@@ -41,8 +41,20 @@ Chosen over Cloudflare R2 on cost, for ~500 GB of retinal OCT images.
 | 500 GB/mo | ~$7.35 | **~$2.94** |
 | Egress | $0 | Free to Cloudflare (Bandwidth Alliance) |
 
-- Region: **East Coast** (`us-east-005`)
+- Bucket: **`retinaoct`** — created 2026-09-19, type `allPrivate`
+- Region: **East Coast** (`us-east-005`) — confirmed via `b2_authorize_account`
 - S3 endpoint: `s3.us-east-005.backblazeb2.com`
+- API: `api005.backblazeb2.com` · downloads: `f005.backblazeb2.com`
+
+Verified working: upload → list → read-back → delete round-trip, 2026-09-19.
+
+### Bucket settings not yet configured
+
+| Setting | Current | Consideration |
+|---|---|---|
+| Lifecycle rules | none | Old versions are retained **forever**. B2 deletes are soft — they hide a file and keep prior versions, all billed. Set a rule to cap version retention or storage will drift upward silently. |
+| Default encryption | none | SSE-B2 is free and one toggle. Worth enabling before any sensitive data lands. |
+| Object Lock | disabled | Makes objects immutable once written. Cannot be retrofitted easily — decide before bulk upload. |
 - Annual difference vs R2: ~$53
 
 **Important:** free egress is *not* automatic. Traffic must actually route
@@ -72,10 +84,16 @@ and no config files:
 |---|---|---|
 | `RCLONE_CONFIG_B2_TYPE` | `b2` | ✅ |
 | `CLOUDFLARE_ACCOUNT_ID` | account id | ✅ |
-| `RCLONE_CONFIG_B2_ACCOUNT` | B2 keyID | ❌ |
-| `RCLONE_CONFIG_B2_KEY` | B2 applicationKey | ❌ |
-| `B2_BUCKET` | bucket name | ❌ |
+| `BB_KEY_ID` | B2 keyID (source) | ✅ |
+| `BB_APPLICATION_KEY` | B2 applicationKey (source) | ✅ |
+| `RCLONE_CONFIG_B2_ACCOUNT` | → `${BB_KEY_ID}` | ✅ |
+| `RCLONE_CONFIG_B2_KEY` | → `${BB_APPLICATION_KEY}` | ✅ |
+| `B2_BUCKET` | `retinaoct` | ✅ |
 | `CLOUDFLARE_API_TOKEN` | scoped DNS token | ❌ |
+
+The two `RCLONE_CONFIG_B2_*` entries are Doppler **secret references**
+(`${BB_KEY_ID}`), not copies. One source of truth; rotating the underlying
+secret updates both automatically.
 
 The `RCLONE_CONFIG_B2_*` naming means **rclone needs no config file at all** —
 it materializes the `b2:` remote purely from the environment.
@@ -150,11 +168,29 @@ doppler run -- wrangler pages deploy ./dist                # deploy site
 
 ## Open items
 
-1. **Add the four remaining secrets to Doppler** (see table above)
+1. **Replace the B2 master key with a bucket-scoped key** — see security note below
 2. **Create the scoped Cloudflare DNS token** — unblocks all DNS work
 3. **Decide what the website is** — landing page / image viewer / gated tool.
    Determines Pages alone vs. Pages + Worker.
 4. **Resolve PHI status** — see below
+
+---
+
+## ⚠️ Security: B2 key is over-privileged
+
+The credentials in Doppler are the **account master key**. Confirmed
+capabilities include `deleteBuckets`, `deleteKeys`, `writeKeys`, and
+`bypassGovernance`, with no bucket restriction.
+
+Master privileges were genuinely required to create the bucket — a
+bucket-scoped key lacks `writeBuckets`. But that step is done, so the key
+should now be downgraded.
+
+**Fix:** in the B2 console create a new Application Key named
+`retinaoct-rclone`, restricted to the `retinaoct` bucket with Read/Write
+access. Update `BB_KEY_ID` and `BB_APPLICATION_KEY` in Doppler — the
+`RCLONE_CONFIG_B2_*` references follow automatically. Then delete the master
+key, or at minimum rotate it.
 
 ---
 

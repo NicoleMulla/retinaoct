@@ -16,10 +16,11 @@ running record of how it was all provisioned.
 | Secrets management | ✅ | Doppler project `retinaoct`, bound to `dev` |
 | Local tooling | ✅ | node, wrangler, rclone, doppler, gh, git |
 | Repository | ✅ | this repo |
-| B2 credentials | ⬜ | bucket exists; keys not yet in Doppler |
+| B2 bucket + credentials | ✅ | `retinaoct` private, `us-east-005`, round-trip verified |
 | Cloudflare DNS token | ⬜ | blocks all DNS record creation |
 | Website | ⬜ | scope not yet decided |
-| Image upload pipeline | ⬜ | blocked on B2 credentials |
+| Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
+| B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
 
 ---
 
