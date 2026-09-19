@@ -20,6 +20,7 @@ running record of how it was all provisioned.
 | Cloudflare DNS token | ✅ | `retinaoct-deploy`, all permissions verified |
 | Website | ✅ | live at **https://retinaoct.com** |
 | Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
+| Datasets staged | ⚠️ | 2 of 5 complete — see [`docs/datasets.md`](docs/datasets.md) |
 | B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
 
 ---
@@ -135,22 +136,23 @@ all** — it builds the `b2:` remote from the environment alone.
 
 ---
 
-## Data classification — unresolved
+## Data classification — resolved
 
-Whether the OCT images are identifiable patient data or de-identified has
-**not yet been determined**, and the answer governs whether the storage choice
-above is appropriate at all.
+All staged data consists of **public, de-identified research datasets**
+(Mendeley Data, Johns Hopkins, Dryad, IEEE DataPort). None carries
+patient-identifiable information, so the Backblaze B2 architecture is
+appropriate and no BAA is required.
 
-- **Identifiable** → HIPAA requires a signed BAA. Backblaze's position is
-  unverified; AWS, GCP, and Azure provide BAAs as a matter of course. This
-  would need settling *before* migrating data, not after.
-- **De-identified** → the current architecture is sound as designed.
-- **DICOM format** → a plain object store leaves study/series indexing,
-  DICOMweb endpoints, and viewer plumbing to be built by hand. AWS
-  HealthImaging and Google Cloud Healthcare API handle these natively.
+This applies only to the datasets listed in [`docs/datasets.md`](docs/datasets.md).
+Should identifiable clinical data enter scope later, the following still holds:
 
-**Until this is resolved: no image data in this repository, and no patient
-data in the B2 bucket.**
+- **Identifiable data** would require a signed BAA. Backblaze's position is
+  unverified; AWS, GCP, and Azure provide BAAs as a matter of course.
+- **DICOM format** would mean building study/series indexing, DICOMweb
+  endpoints, and viewer plumbing by hand.
+
+**No image data in this repository, ever** — datasets are staged outside the
+repo at `/Users/nicolemulla/oct-data/`.
 
 ---
 
