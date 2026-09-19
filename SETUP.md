@@ -14,6 +14,7 @@ Last updated: 2026-09-19
 | Backblaze B2 | ⚠️ Account + bucket created; credentials not yet in Doppler |
 | Secrets management | ✅ Doppler project created and bound |
 | Local tooling | ✅ Installed |
+| Repo | ✅ github.com/NicoleMulla/retinaoct (public) |
 | Website | ❌ Not started — scope undecided |
 | DNS records | ❌ Blocked on scoped API token |
 
@@ -106,6 +107,19 @@ permission errors.
 
 ---
 
+## Repository
+
+- **github.com/NicoleMulla/retinaoct** — public, default branch `main`
+- Local root: `/Users/nicolemulla/retinaoct`
+- Commit identity: `Nicole Mulla <nclmulla@gmail.com>`
+- `NicoleMulla/med_classifier` is a separate, currently empty public repo
+
+Because the repo is **public**, never commit: Doppler service tokens, B2
+application keys, Cloudflare API tokens, `.env`, `.dev.vars`, or any patient
+data. `.gitignore` covers the common paths — verify before each push.
+
+---
+
 ## Local tooling
 
 | Tool | Version |
@@ -140,8 +154,7 @@ doppler run -- wrangler pages deploy ./dist                # deploy site
 2. **Create the scoped Cloudflare DNS token** — unblocks all DNS work
 3. **Decide what the website is** — landing page / image viewer / gated tool.
    Determines Pages alone vs. Pages + Worker.
-4. **Set git identity** — `user.name` and `user.email` are unset globally
-5. **Resolve PHI status** — see below
+4. **Resolve PHI status** — see below
 
 ---
 
