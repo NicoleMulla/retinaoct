@@ -1,0 +1,6 @@
+.doppler.yaml
+node_modules/
+.dev.vars
+.env
+*.creds
+.wrangler/
