@@ -9,21 +9,47 @@ during infrastructure setup.
 
 ---
 
-## Status — 2026-09-20
+## Status — 2026-09-20 ✅ complete
 
-| # | Dataset | Objects in B2 | Size | State |
+| # | Dataset | Objects | Size | State |
 |---|---|---:|---:|---|
-| 1 | OCTDL | 2,064 | 0.41 GB | ✅ complete |
-| 2 | HCMS (JHU) | 72 | 3.68 GB | ✅ complete |
-| 3 | Kermany OCT2017 **v2** | 84,484 | 5.81 GB | ✅ complete |
-| 4 | Bissig / OHSU AD | 1,112 | 5.87 GB | ✅ complete |
-| 5 | OLIVES | 74,350 / 162,871 | 25.41 / 49 GB | ⏳ uploading |
+| 1 | OCTDL | 2,064 | 0.41 GB | ✅ |
+| 2 | HCMS (JHU) | 72 | 3.68 GB | ✅ |
+| 3 | Kermany OCT2017 **v2** | 84,484 | 5.81 GB | ✅ |
+| 4 | Bissig / OHSU AD | 1,112 | 5.87 GB | ✅ |
+| 5 | OLIVES | 162,871 | 52.15 GB | ✅ |
 | 6 | OCTA-500 | — | — | ⏸️ skipped by request |
 
-**Bucket total so far: 162,483 objects, 41.31 GB.** Expected on completion:
-~251,000 objects, ~65 GB.
+**Bucket total: 250,603 objects, 67.91 GB — roughly $0.41/month.**
 
-The B2 storage cap was lifted, unblocking all uploads.
+### Verification
+
+Every dataset's B2 object count matches its local file count exactly. A
+random file from each was downloaded from B2 and SHA-256 compared against
+local — 5 of 5 matched:
+
+```
+OK  octdl            amd_3071419_4.jpg                      413,384 B
+OK  hcms             hc10_spectralis_macula_v1_s1_R.mat      71,094 B
+OK  kermany-oct2017  CNV-2959614-3.jpeg                      60,234 B
+OK  bissig-ohsu-ad   AD647_LIGHT_MARKED.hdr                     348 B
+OK  olives           24.png                                 114,559 B
+```
+
+### File formats vary by dataset
+
+Relevant when building the viewer — these are not uniformly JPEGs:
+
+| Dataset | Format |
+|---|---|
+| OCTDL | `.jpg` |
+| Kermany | `.jpeg` |
+| OLIVES | `.png` |
+| HCMS | `.mat` (MATLAB — volumes + layer delineations) |
+| Bissig | `.hdr` / `.img` (ANALYZE 7.5 — volumetric) |
+
+HCMS and Bissig are **not directly viewable in a browser**. They need
+server-side conversion to render, unlike the three image-based sets.
 
 ### Kermany: v2 replaced v3
 

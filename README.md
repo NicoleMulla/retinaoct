@@ -20,7 +20,7 @@ running record of how it was all provisioned.
 | Cloudflare DNS token | ✅ | `retinaoct-deploy`, all permissions verified |
 | Website | ✅ | live at **https://retinaoct.com** |
 | Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
-| Datasets staged | ⏳ | 4 of 5 complete, OLIVES uploading — see [`docs/datasets.md`](docs/datasets.md) |
+| Datasets staged | ✅ | 250,603 objects, 67.91 GB — see [`docs/datasets.md`](docs/datasets.md) |
 | B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
 
 ---
