@@ -15,21 +15,15 @@ during infrastructure setup.
 |---|---|---:|---:|---|
 | 1 | OCTDL | 2,064 | 0.41 GB | ✅ complete |
 | 2 | HCMS (JHU) | 72 | 3.68 GB | ✅ complete |
-| 3 | Kermany OCT2017 v2 | 0 | — | ⬜ staged locally, blocked on cap |
-| 4 | Bissig / OHSU AD | 0 | — | ⬜ staged locally, blocked on cap |
-| 5 | OLIVES | 0 | — | ⬜ on T7, not yet extracted |
-| 6 | OCTA-500 | 0 | — | ⏸️ skipped by request |
+| 3 | Kermany OCT2017 **v2** | 84,484 | 5.81 GB | ✅ complete |
+| 4 | Bissig / OHSU AD | 1,112 | 5.87 GB | ✅ complete |
+| 5 | OLIVES | 74,350 / 162,871 | 25.41 / 49 GB | ⏳ uploading |
+| 6 | OCTA-500 | — | — | ⏸️ skipped by request |
 
-**Bucket total: 2,136 objects, 4.09 GB.**
+**Bucket total so far: 162,483 objects, 41.31 GB.** Expected on completion:
+~251,000 objects, ~65 GB.
 
-### Staged locally, ready to upload
-
-| Dataset | Files | Size | Location |
-|---|---:|---:|---|
-| Kermany v2 | 84,484 | 5.6 GB | `oct-data/extracted/kermany-oct2017-v2/` |
-| Bissig | 1,112 | 5.5 GB | `oct-data/extracted/bissig-ohsu-ad/` |
-| Kermany v3 (backup) | 115,179 | 8.1 GB | `oct-data/extracted/kermany-oct2017/` |
-| OLIVES | — | 32 GB zip | `/Volumes/T7/ret-dataset/OLIVES/` |
+The B2 storage cap was lifted, unblocking all uploads.
 
 ### Kermany: v2 replaced v3
 
@@ -39,21 +33,14 @@ OCT2017 archive."* v2 extracts to **exactly 84,484 files**, matching the image
 count published in the Kermany *Cell* paper. The v3 copy is retained locally as
 a backup.
 
-### ⚠️ Blocker: B2 storage cap still enforced
+### Resolved: B2 storage cap
 
-Uploads fail with `403 storage_cap_exceeded` even after account changes were
-made. Note that **enabling billing does not raise the storage cap** — it is a
-separate setting at **B2 Console → Account → Caps & Alerts → Storage Cap**,
-defaulting to 10 GB.
+Uploads previously failed with `403 storage_cap_exceeded`. The cap has since
+been lifted and writes now succeed. Worth remembering: **enabling billing does
+not raise the storage cap** — it is a separate setting under
+**Account → Caps & Alerts**, defaulting to 10 GB.
 
-Full set needs roughly **60 GB** of cap (~$0.33/month at B2 rates).
-
-Resume once raised:
-
-```bash
-cd /Users/nicolemulla/oct-data
-doppler run -- ./upload_t7.sh      # Bissig + Kermany v2
-```
+At ~65 GB stored, B2 costs roughly **$0.39/month**.
 
 ---
 
@@ -134,12 +121,29 @@ circumvented.
 `/Users/nicolemulla/oct-data/archives/bissig-ohsu-ad.rar`, verify the hash
 above, then re-run `process.sh`. `unar` is installed to handle the `.rar`.
 
-### 5. OLIVES ⬜ pending
-- Found on the T7 drive; not part of the original four.
+### 5. OLIVES ⏳ uploading
+- From the T7 drive; not part of the original four. Approved for inclusion.
 - `OLIVES.zip` (32 GB) + `OLIVES_Dataset_Labels.zip`
-- Published SHA-256: `d7c7e0d9e0ed6143d7b332196563513b87f366efbd0fa43aed051f6f2417ee38`
-- Retinal OCT paired with clinical/biomarker labels. Approved for upload;
-  blocked on the storage cap.
+- SHA-256 **verified** against publisher value:
+  `d7c7e0d9e0ed6143d7b332196563513b87f366efbd0fa43aed051f6f2417ee38`
+- B2: `datasets/olives/`
+
+**OLIVES.zip contains nested archives, not images.** Extracting it yields only
+two zips plus label files:
+
+| Nested archive | Extracts to |
+|---|---|
+| `TREX_DME.zip` (18 GB) | 96,051 files, 29 GB |
+| `Prime_FULL.zip` (13 GB) | 66,813 files, 21 GB |
+
+**162,871 files, 49 GB total.** A first upload attempt pushed the nested zips
+as-is; that was stopped and redone after full extraction, since storing the
+archives would neither be browsable nor searchable and would double storage.
+Nested zips were deleted locally after extraction to reclaim disk.
+
+Labels live in `OLIVES_Dataset_Labels/` (`Clinical_Data_Images.xlsx`,
+`Biomarker_Clinical_Data_Images.csv`) in both `full_labels` and
+`ml_centric_labels` variants.
 
 ### 6. OCTA-500 ⏸️ skipped
 - [ieee-dataport.org/open-access/octa-500](https://ieee-dataport.org/open-access/octa-500)
