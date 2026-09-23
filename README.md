@@ -69,7 +69,10 @@ reversible at low cost if requirements change.
 ├── README.md          you are here — overview and status
 ├── SETUP.md           detailed provisioning log, decisions, and rationale
 ├── docs/
-│   └── runbook.md     day-to-day operational commands
+│   ├── runbook.md     day-to-day operational commands
+│   ├── datasets.md    dataset sources, verification, staging
+│   └── biomarkers.md  biomarker extraction plan and label inventory
+├── scripts/           data staging scripts (provenance)
 └── .gitignore         secrets and build artifacts
 ```
 
