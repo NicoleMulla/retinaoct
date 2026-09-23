@@ -3,186 +3,333 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Retina OCT — imaging archive</title>
-<meta name="description" content="A searchable archive of retinal optical
-  coherence tomography imaging. Browse scans and query their metadata.">
-<meta name="color-scheme" content="light dark">
+<title>Retina OCT — searchable OCT image atlas</title>
+<meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations and clinical metadata.">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<meta property="og:title" content="Retina OCT — imaging archive">
-<meta property="og:description" content="A searchable archive of retinal OCT imaging.">
-<meta property="og:type" content="website">
 </head>
 <body>
 
 <header>
   <div class="wrap bar">
     <div class="brand">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="9.2" stroke="currentColor" stroke-width="1.6"/>
-        <circle cx="12" cy="12" r="4.4" stroke="currentColor" stroke-width="1.6"
-                opacity="0.55"/>
-        <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="10.4" stroke="#6b86ff" stroke-width="1.5"/>
+        <ellipse cx="12" cy="12" rx="10" ry="5.4" stroke="#9fb0d8" stroke-width="1.3" opacity=".75"/>
+        <circle cx="12" cy="12" r="3.1" fill="#6b86ff"/>
       </svg>
-      Retina&nbsp;OCT
+      <span class="brand-txt"><strong>Retina OCT</strong><span>Open images. Deeper insights.</span></span>
     </div>
-    <span class="tag">Coming soon</span>
+    <nav>
+      <a href="#" class="on">Explore</a>
+      <a href="#about">About</a>
+      <a href="#sources">Data sources</a>
+      <a href="https://github.com/NicoleMulla/retinaoct" target="_blank" rel="noopener">Documentation</a>
+    </nav>
+    <div class="bar-end"></div>
   </div>
 </header>
 
-<main>
-  <section class="wrap hero">
-    <h1>A searchable archive of retinal OCT imaging.</h1>
-    <p class="lede">
-      Browse optical coherence tomography scans and query the metadata behind
-      them — acquisition parameters, device, laterality, study date, and
-      structural measurements — in one place.
-    </p>
-  </section>
-
-  <figure class="wrap scan">
-    <svg viewBox="0 0 900 280" role="img" aria-labelledby="scanTitle scanDesc"
-         preserveAspectRatio="xMidYMid slice">
-      <title id="scanTitle">Stylised optical coherence tomography B-scan</title>
-      <desc id="scanDesc">A cross-section of the retina showing layered bands
-        with a central foveal depression, rendered as an illustration.</desc>
-      <defs>
-        <linearGradient id="vit" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stop-color="#05070c"/>
-          <stop offset="55%"  stop-color="#0a0d14"/>
-          <stop offset="100%" stop-color="#140d08"/>
-        </linearGradient>
-        <linearGradient id="sweepG" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"   stop-color="#ffc98a" stop-opacity="0"/>
-          <stop offset="50%"  stop-color="#ffc98a" stop-opacity="0.5"/>
-          <stop offset="100%" stop-color="#ffc98a" stop-opacity="0"/>
-        </linearGradient>
-        <filter id="soft"><feGaussianBlur stdDeviation="1.1"/></filter>
-      </defs>
-
-      <rect width="900" height="280" fill="url(#vit)"/>
-
-      <g fill="none" stroke-linecap="round" filter="url(#soft)">
-      <path d="M 0,78 L 300,78 C 372,78 396,136 450,136 C 504,136 528,78 600,78 L 900,78" stroke="#7fd4e8" stroke-width="2.0" opacity="0.55"/>
-      <path d="M 0,95 L 300,95 C 372,95 396,141 450,141 C 504,141 528,95 600,95 L 900,95" stroke="#f2b872" stroke-width="3.2" opacity="0.5"/>
-      <path d="M 0,110 L 300,110 C 372,110 396,144 450,144 C 504,144 528,110 600,110 L 900,110" stroke="#e8944a" stroke-width="2.4" opacity="0.62"/>
-      <path d="M 0,124 L 300,124 C 372,124 396,145 450,145 C 504,145 528,124 600,124 L 900,124" stroke="#f6c98d" stroke-width="3.0" opacity="0.45"/>
-      <path d="M 0,139 L 300,139 C 372,139 396,147 450,147 C 504,147 528,139 600,139 L 900,139" stroke="#e07b34" stroke-width="2.2" opacity="0.58"/>
-      <path d="M 0,156 L 300,156 C 372,156 396,158 450,158 C 504,158 528,156 600,156 L 900,156" stroke="#ffd9a0" stroke-width="3.6" opacity="0.85"/>
-      <path d="M 0,167 L 900,167" stroke="#ff9f45" stroke-width="4.4" opacity="0.95"/>
-      <path d="M 0,180 L 900,180" stroke="#8a4a22" stroke-width="6.0" opacity="0.4"/>
-      <path d="M 0,196 L 900,196" stroke="#5c3018" stroke-width="9.0" opacity="0.26"/>
-      </g>
-
-      <g class="sweep">
-        <rect x="-160" y="0" width="160" height="280" fill="url(#sweepG)">
-          <animate attributeName="x" from="-160" to="900" dur="7s"
-                   repeatCount="indefinite"/>
-        </rect>
-      </g>
-    </svg>
-    <figcaption>Illustrative B-scan — foveal cross-section</figcaption>
-  </figure>
-
-  <section class="wrap grid">
-    <article class="card">
-      <h2>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="3" y="3" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
-          <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
-          <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
-          <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.4" stroke="currentColor" stroke-width="1.7"/>
-        </svg>
-        Browse scans
-      </h2>
-      <p>
-        Page through the image library with thumbnail previews, filter by study
-        or device, and open any scan at full resolution.
-      </p>
-      <div class="soon"><span class="dot"></span> In development</div>
-    </article>
-
-    <article class="card">
-      <h2>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="10.5" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.8"/>
-          <path d="M15.6 15.6L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-        Search metadata
-      </h2>
-      <p>
-        Query across acquisition date, device model, laterality, scan pattern,
-        signal strength, and derived measurements to find the images you need.
-      </p>
-      <div class="soon"><span class="dot"></span> In development</div>
-    </article>
-
-    <article class="card">
-      <h2>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M12 3v13.5M12 16.5l-4.3-4.3M12 16.5l4.3-4.3"
-                stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                stroke-linejoin="round"/>
-          <path d="M4 20.2h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-        Export
-      </h2>
-      <p>
-        Pull a filtered set of images and their metadata as a manifest for
-        downstream analysis or model training.
-      </p>
-      <div class="soon"><span class="dot"></span> Planned</div>
-    </article>
-  </section>
-
-  <section class="wrap preview">
-    <h2>What search will look like</h2>
-    <p>
-      A preview of the interface under construction. Nothing here is live yet —
-      the fields and results below are illustrative.
-    </p>
-
-    <div class="mock" aria-hidden="true">
-      <div class="mock-bar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-          <circle cx="10.5" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.9"/>
-          <path d="M15.6 15.6L21 21" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-        </svg>
-        device:&nbsp;Cirrus&nbsp;&nbsp;·&nbsp;&nbsp;laterality:&nbsp;OD&nbsp;&nbsp;·&nbsp;&nbsp;signal&nbsp;≥&nbsp;7
-      </div>
-      <div class="mock-body">
-        <div class="row">
-          <div><div class="skel w70"></div></div>
-          <span class="chip">macular cube</span>
+<section class="hero">
+  <div class="wrap hero-in">
+    <div>
+      <h1>Search a real OCT <em>dataset</em></h1>
+      <p>Explore retinal optical coherence tomography B-scans with expert biomarker
+         annotations, visual acuity and retinal thickness measurements from two
+         clinical trials.</p>
+      <div class="stats">
+        <div class="stat">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="6" rx="8" ry="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M4 6v12c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2V6" stroke="currentColor" stroke-width="1.6"/><path d="M4 12c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2" stroke="currentColor" stroke-width="1.6"/></svg>
+          <span><b id="s-images">—</b><span>OCT images</span></span>
         </div>
-        <div class="row">
-          <div><div class="skel w52"></div></div>
-          <span class="chip">5-line raster</span>
+        <div class="stat">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 19V9M9.3 19V4M14.7 19v-8M20 19v-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          <span><b id="s-labelled">—</b><span>Biomarker-labelled</span></span>
         </div>
-        <div class="row">
-          <div><div class="skel w61"></div></div>
-          <span class="chip">optic disc</span>
+        <div class="stat">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span><b>16</b><span>Expert biomarkers</span></span>
         </div>
-        <div class="row">
-          <span class="row-id">… results pending index build</span>
-          <span class="chip">—</span>
+        <div class="stat">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.6"/><path d="M3.4 12h17.2M12 3.4c2.2 2.4 3.3 5.4 3.3 8.6S14.2 18.2 12 20.6c-2.2-2.4-3.3-5.4-3.3-8.6S9.8 5.8 12 3.4Z" stroke="currentColor" stroke-width="1.4"/></svg>
+          <span><b>2</b><span>Clinical trials</span></span>
         </div>
       </div>
     </div>
+    <figure class="hero-art" id="hero-art"></figure>
+  </div>
+</section>
+
+<main class="wrap app">
+
+  <aside class="panel facets">
+    <div class="facet-head"><h2>Active filters</h2><button class="link" id="clear">Clear all</button></div>
+    <div class="chips" id="chips"></div>
+    <div class="count-big"><b id="count">—</b><span id="count-sub">loading…</span></div>
+    <div id="groups"></div>
+  </aside>
+
+  <section>
+    <form class="searchbar" id="form">
+      <label class="sfield">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.9"/><path d="M15.6 15.6 21 21" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        <input id="q" placeholder="Search by patient, subject or path (e.g. 01-001, GILA)" autocomplete="off">
+      </label>
+      <button class="btn" type="submit">Search</button>
+    </form>
+
+    <div class="toolbar">
+      <span class="n" id="n">—</span>
+      <span style="color:var(--muted);font-size:12.5px" id="showing"></span>
+      <span class="right">
+        Sort by
+        <select id="sort">
+          <option value="relevant">Most annotated</option>
+          <option value="biomarkers">Biomarker count</option>
+          <option value="cst_desc">Thickness (CST) high→low</option>
+          <option value="cst_asc">Thickness (CST) low→high</option>
+          <option value="bcva_desc">Acuity (BCVA) high→low</option>
+          <option value="bcva_asc">Acuity (BCVA) low→high</option>
+        </select>
+      </span>
+    </div>
+
+    <div class="grid" id="grid"></div>
+    <div class="pager" id="pager"></div>
   </section>
+
+  <aside class="panel detail" id="detail">
+    <div class="empty">Select an image to see its metadata and biomarkers.</div>
+  </aside>
 </main>
 
 <footer class="wrap">
-  <p class="note">
-    <strong>Research use only.</strong> This site is a placeholder under active
-    development. It is not a medical device and is not intended for diagnosis or
-    treatment decisions. No patient-identifiable data is published here.
-  </p>
-  <div class="foot-row">
-    <span>© 2026 Retina OCT</span>
-    <span>retinaoct.com</span>
-  </div>
+  <p class="note" id="about"><strong>About.</strong> This atlas indexes the
+  <a href="https://doi.org/10.1109/TMI.2024.3355109" target="_blank" rel="noopener" style="color:var(--brand)">OLIVES</a>
+  dataset — OCT B-scans from the PRIME and TREX-DME clinical trials, paired with
+  expert biomarker annotations, best-corrected visual acuity (BCVA) and central
+  subfield thickness (CST). Research use only; not a medical device and not for
+  diagnosis. No patient-identifiable data is published.</p>
+  <p class="note" id="sources"><strong>Data source.</strong> OLIVES, Georgia Tech
+  OLIVES Lab. Images are de-identified and published for research.
+  <span id="img-note"></span></p>
+  <div>© 2026 Retina OCT · retinaoct.com</div>
 </footer>
 
+<script>
+const IMG_BASE = "";                 // set once image hosting is live
+const PER = 24;
+const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], has_bio:false,
+                bcva_min:"", bcva_max:"", cst_min:"", cst_max:"", sel:null };
+const $ = s => document.querySelector(s);
+const fmt = n => (n ?? 0).toLocaleString();
+const imgUrl = k => IMG_BASE && k ? IMG_BASE.replace(/\/$/,"") + "/" + k : null;
+
+/* stylised B-scan for the hero */
+(function(){
+  const L=[[78,58,2,"#7fd4e8",.5],[95,46,3.2,"#f2b872",.5],[110,34,2.4,"#e8944a",.6],
+           [124,21,3,"#f6c98d",.45],[139,8,2.2,"#e07b34",.58],[156,2,3.6,"#ffd9a0",.85],
+           [167,0,4.4,"#ff9f45",.95],[180,0,6,"#8a4a22",.4],[196,0,9,"#5c3018",.26]];
+  const p=(y,d)=>d===0?`M0,${y} L900,${y}`:
+    `M0,${y} L300,${y} C372,${y} 396,${y+d} 450,${y+d} C504,${y+d} 528,${y} 600,${y} L900,${y}`;
+  $("#hero-art").innerHTML=`<svg viewBox="0 0 900 280" role="img" aria-label="Illustrative OCT B-scan">
+    <defs><linearGradient id="v" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#05070c"/><stop offset="55%" stop-color="#0a0d14"/>
+      <stop offset="100%" stop-color="#140d08"/></linearGradient>
+      <filter id="s"><feGaussianBlur stdDeviation="1.1"/></filter></defs>
+    <rect width="900" height="280" fill="url(#v)"/>
+    <g fill="none" stroke-linecap="round" filter="url(#s)">
+    ${L.map(([y,d,w,c,o])=>`<path d="${p(y,d)}" stroke="${c}" stroke-width="${w}" opacity="${o}"/>`).join("")}
+    </g></svg>`;
+})();
+
+function qs(){
+  const u=new URLSearchParams();
+  if(state.q) u.set("q",state.q);
+  for(const k of ["trial","eye","visit","bio"]) if(state[k].length) u.set(k,state[k].join(","));
+  if(state.has_bio) u.set("has_bio","1");
+  for(const k of ["bcva_min","bcva_max","cst_min","cst_max"]) if(state[k]!=="") u.set(k,state[k]);
+  u.set("sort",state.sort); u.set("page",state.page); u.set("per_page",PER);
+  return u.toString();
+}
+function toggle(key,val){
+  const a=state[key], i=a.indexOf(val);
+  i<0 ? a.push(val) : a.splice(i,1);
+  state.page=1; load();
+}
+
+async function load(){
+  $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Loading…</div>`;
+  const r=await fetch("/api/search?"+qs());
+  if(!r.ok){ $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Search failed (${r.status}).</div>`; return; }
+  const d=await r.json();
+  render(d); renderFacets(d.facets,d.total);
+}
+
+function render(d){
+  $("#n").textContent = fmt(d.total)+" result"+(d.total===1?"":"s");
+  const from=(d.page-1)*d.per_page+1, to=Math.min(d.page*d.per_page,d.total);
+  $("#showing").textContent = d.total ? `Showing ${fmt(from)}–${fmt(to)}` : "";
+  $("#count").textContent = fmt(d.total);
+  $("#count-sub").textContent = "images match your filters";
+
+  $("#grid").innerHTML = d.results.length ? d.results.map(r=>{
+    const u=imgUrl(r.thumb_key);
+    const bio = r.has_biomarkers
+      ? `<span class="badge ok">${r.biomarker_count} biomarker${r.biomarker_count===1?"":"s"}</span>`
+      : `<span class="badge">Unlabelled</span>`;
+    return `<article class="card ${state.sel===r.id?"sel":""}" data-id="${r.id}">
+      <div class="thumb">${u?`<img loading="lazy" src="${u}" alt="">`:`<span class="ph">OCT B-scan</span>`}${bio}</div>
+      <div class="card-b">
+        <h3>OCT_${String(r.id).padStart(7,"0")}</h3>
+        <div class="meta">
+          <div><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>${r.eye==="OD"?"Right eye (OD)":r.eye==="OS"?"Left eye (OS)":"—"}</div>
+          <div><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V8l7-4 7 4v13" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>${r.trial==="TREX_DME"?"TREX-DME":"PRIME"} · ${r.subject??"—"}</div>
+          <div><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 3v4M16 3v4M3.5 10h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Visit ${r.visit??"—"} · scan ${r.scan_index??"—"}</div>
+        </div>
+        <div class="tags">
+          ${r.cst!=null?`<span class="tag w">CST ${Math.round(r.cst)} µm</span>`:""}
+          ${r.bcva!=null?`<span class="tag g">BCVA ${Math.round(r.bcva)}</span>`:""}
+        </div>
+      </div></article>`;
+  }).join("") : `<div class="empty" style="grid-column:1/-1">No images match these filters.</div>`;
+
+  const pages=Math.ceil(d.total/d.per_page)||1;
+  $("#pager").innerHTML = pages>1 ? `
+    <button ${d.page<=1?"disabled":""} id="prev">← Previous</button>
+    <span>Page ${fmt(d.page)} of ${fmt(pages)}</span>
+    <button ${d.page>=pages?"disabled":""} id="next">Next →</button>` : "";
+  const prev=$("#prev"), next=$("#next");
+  if(prev) prev.onclick=()=>{state.page--;load();window.scrollTo({top:340,behavior:"smooth"})};
+  if(next) next.onclick=()=>{state.page++;load();window.scrollTo({top:340,behavior:"smooth"})};
+
+  document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openDetail(+c.dataset.id));
+}
+
+function group(id,icon,title,body,open=true){
+  return `<details class="grp" ${open?"open":""}><summary>${icon}${title}
+    <svg class="caret" width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </summary>${body}</details>`;
+}
+const ICON={
+  bio:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 19V9M9.3 19V4M14.7 19v-8M20 19v-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>`,
+  trial:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V8l7-4 7 4v13" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  eye:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg>`,
+  cal:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="16" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 3v4M16 3v4M3.5 10h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+  num:`<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M5 7h14M5 17h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`,
+};
+
+function renderFacets(f,total){
+  const opt=(key,val,label,n,checked)=>`<label class="opt"><input type="checkbox" data-key="${key}" data-val="${val}" ${checked?"checked":""}><span>${label}</span><span class="n">${fmt(n)}</span></label>`;
+  const bioRows=f.biomarkers.map(b=>opt("bio",b.key,b.label,b.count,state.bio.includes(b.key))).join("");
+  const visits=f.visit.slice(0,8).map(v=>opt("visit",v.v,v.v,v.n,state.visit.includes(v.v))).join("");
+
+  $("#groups").innerHTML =
+    group("bio",ICON.bio,"Biomarkers",`<div class="opts" id="bio-opts">
+        <label class="opt"><input type="checkbox" id="hasbio" ${state.has_bio?"checked":""}><span>Annotated only</span><span class="n">${fmt(f.labelled)}</span></label>
+        ${bioRows||'<span style="font-size:12px;color:var(--faint)">none in this selection</span>'}</div>`)
+  + group("trial",ICON.trial,"Clinical trial",`<div class="opts">${
+      f.trial.map(t=>opt("trial",t.v,t.v==="TREX_DME"?"TREX-DME":"PRIME",t.n,state.trial.includes(t.v))).join("")}</div>`)
+  + group("eye",ICON.eye,"Eye",`<div class="opts">${
+      f.eye.map(e=>opt("eye",e.v,e.v==="OD"?"Right eye (OD)":"Left eye (OS)",e.n,state.eye.includes(e.v))).join("")}</div>`)
+  + group("visit",ICON.cal,"Visit",`<div class="opts">${visits}</div>`,false)
+  + group("cst",ICON.num,"Central subfield thickness (µm)",
+      `<div class="rng"><input id="cst_min" type="number" placeholder="min" value="${state.cst_min}">
+       <input id="cst_max" type="number" placeholder="max" value="${state.cst_max}"></div>`,false)
+  + group("bcva",ICON.num,"Visual acuity (BCVA letters)",
+      `<div class="rng"><input id="bcva_min" type="number" placeholder="min" value="${state.bcva_min}">
+       <input id="bcva_max" type="number" placeholder="max" value="${state.bcva_max}"></div>`,false);
+
+  $("#groups").querySelectorAll('input[type=checkbox][data-key]').forEach(el=>{
+    el.onchange=()=>toggle(el.dataset.key,el.dataset.val);
+  });
+  const hb=$("#hasbio"); if(hb) hb.onchange=()=>{state.has_bio=hb.checked;state.page=1;load()};
+  for(const k of ["cst_min","cst_max","bcva_min","bcva_max"]){
+    const el=$("#"+k); if(el) el.onchange=()=>{state[k]=el.value;state.page=1;load()};
+  }
+
+  const labels={trial:v=>v==="TREX_DME"?"TREX-DME":"PRIME",eye:v=>v==="OD"?"Right eye":"Left eye",
+                visit:v=>"Visit "+v,bio:v=>(f.biomarkers.find(b=>b.key===v)||{}).label||v};
+  let chips=[];
+  for(const k of ["bio","trial","eye","visit"])
+    for(const v of state[k]) chips.push(`<span class="chip">${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
+  if(state.has_bio) chips.push(`<span class="chip">Annotated only<button data-k="has_bio">✕</button></span>`);
+  if(state.q) chips.push(`<span class="chip">“${state.q}”<button data-k="q">✕</button></span>`);
+  $("#chips").innerHTML=chips.join("");
+  $("#chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.k;
+    if(k==="has_bio"){state.has_bio=false}
+    else if(k==="q"){state.q="";$("#q").value=""}
+    else toggle(k,b.dataset.v);
+    state.page=1; load();
+  });
+}
+
+async function openDetail(id){
+  state.sel=id;
+  document.querySelectorAll(".card").forEach(c=>c.classList.toggle("sel",+c.dataset.id===id));
+  const d=$("#detail"); d.innerHTML=`<div class="empty">Loading…</div>`;
+  const r=await fetch("/api/image/"+id);
+  if(!r.ok){ d.innerHTML=`<div class="empty">Could not load image ${id}.</div>`; return; }
+  const m=await r.json();
+  const u=imgUrl(m.full_key);
+  const row=(icon,k,v)=>v==null||v===""?"":`<div class="row">${icon}<span class="k">${k}</span><span class="v">${v}</span></div>`;
+  const present=m.biomarkers.filter(b=>b.present).length;
+
+  d.innerHTML=`
+    <div class="detail-head"><h2>OCT_${String(m.id).padStart(7,"0")}</h2>
+      <button class="icon-btn" id="close"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
+    <div class="detail-img">${u?`<img src="${u}" alt="">`:`<div style="display:grid;place-items:center;height:100%;color:#3a4358;font-size:12px">Image hosting pending</div>`}</div>
+    <div class="tabs"><button class="tab on" data-t="d">Details</button>
+      <button class="tab" data-t="b">Biomarkers${m.has_labels?` (${present})`:""}</button></div>
+    <div id="tab-d" class="rows">
+      ${row(ICON.eye,"Eye",m.eye==="OD"?"Right (OD)":m.eye==="OS"?"Left (OS)":"—")}
+      ${row(ICON.trial,"Trial",m.trial==="TREX_DME"?"TREX-DME":"PRIME")}
+      ${row(ICON.trial,"Subject",m.subject)}
+      ${row(ICON.cal,"Visit",m.visit)}
+      ${row(ICON.num,"Scan position",m.scan_index!=null?`${m.scan_index} of 49`:null)}
+      ${row(ICON.num,"CST",m.cst!=null?`${Math.round(m.cst)} µm`:null)}
+      ${row(ICON.num,"BCVA",m.bcva!=null?`${Math.round(m.bcva)} letters`:null)}
+      ${row(ICON.num,"Patient ID",m.patient_id)}
+      ${row(ICON.num,"Eye ID",m.eye_id)}
+      ${row(ICON.num,"Age",m.age)}
+      ${row(ICON.num,"Diabetes",m.diabetes_type)}
+      ${row(ICON.num,"HbA1c (baseline)",m.hba1c_baseline)}
+      ${row(ICON.num,"DRSS",m.drss)}
+    </div>
+    <div id="tab-b" hidden class="rows">
+      ${m.has_labels
+        ? m.biomarkers.map(b=>`<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}<span class="v">${b.present?"Present":"Absent"}</span></div>`).join("")
+        : `<div class="empty" style="padding:24px 0">This image has clinical metadata but no expert biomarker annotation.</div>`}
+    </div>
+    ${m.same_eye.length?`<div class="sect-h">Other scans of this eye</div><div class="strip">${
+      m.same_eye.slice(0,8).map(s=>{const su=imgUrl(s.thumb_key);
+        return su?`<img src="${su}" data-id="${s.id}" alt="" title="Visit ${s.visit} · scan ${s.scan_index}">`
+                 :`<div style="aspect-ratio:1;background:#0a0d14;border-radius:5px" data-id="${s.id}"></div>`;}).join("")}</div>`:""}
+    <div class="detail-foot"><button class="btn ghost" id="copy">Copy image path</button></div>`;
+
+  d.querySelector("#close").onclick=()=>{state.sel=null;d.innerHTML=`<div class="empty">Select an image to see its metadata and biomarkers.</div>`;
+    document.querySelectorAll(".card").forEach(c=>c.classList.remove("sel"))};
+  d.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+    d.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
+    $("#tab-d").hidden = t.dataset.t!=="d"; $("#tab-b").hidden = t.dataset.t!=="b";
+  });
+  d.querySelectorAll(".strip [data-id]").forEach(el=>el.onclick=()=>openDetail(+el.dataset.id));
+  d.querySelector("#copy").onclick=e=>{navigator.clipboard?.writeText(m.path);e.target.textContent="Copied";
+    setTimeout(()=>e.target.textContent="Copy image path",1400)};
+}
+
+$("#form").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.page=1;load()};
+$("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load()};
+$("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],has_bio:false,
+  bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
+if(!IMG_BASE) $("#img-note").textContent="Image hosting is being configured; thumbnails appear once it is live.";
+
+fetch("/api/search?per_page=1").then(r=>r.json()).then(d=>{
+  $("#s-images").textContent=fmt(d.total);
+  $("#s-labelled").textContent=fmt(d.facets.labelled);
+});
+load();
+</script>
 </body>
 </html>
