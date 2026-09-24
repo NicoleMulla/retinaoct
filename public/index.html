@@ -110,14 +110,20 @@
   expert biomarker annotations, best-corrected visual acuity (BCVA) and central
   subfield thickness (CST). Research use only; not a medical device and not for
   diagnosis. No patient-identifiable data is published.</p>
-  <p class="note" id="sources"><strong>Data source.</strong> OLIVES, Georgia Tech
-  OLIVES Lab. Images are de-identified and published for research.
-  <span id="img-note"></span></p>
+  <p class="note" id="sources"><strong>Data source and licence.</strong>
+  Images and annotations are from the <strong>OLIVES</strong> dataset —
+  Prabhushankar, Kokilepersaud, Logan, Trejo Corona, AlRegib and Wykoff,
+  <em>“OLIVES Dataset: Ophthalmic Labels for Investigating Visual Eye Semantics”</em>,
+  NeurIPS Datasets and Benchmarks, 2022
+  (<a href="https://doi.org/10.5281/zenodo.6622145" target="_blank" rel="noopener" style="color:var(--brand)">doi:10.5281/zenodo.6622145</a>).
+  Licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener" style="color:var(--brand)">CC BY 4.0</a>.
+  Images shown here are downsampled WebP derivatives of the originals; the
+  source data is unmodified and available from the link above.</p>
   <div>© 2026 Retina OCT · retinaoct.com</div>
 </footer>
 
 <script>
-const IMG_BASE = "";                 // set once image hosting is live
+const IMG_BASE = "/img";             // proxied from B2 (read-only, web/ prefix)
 const PER = 24;
 const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], has_bio:false,
                 bcva_min:"", bcva_max:"", cst_min:"", cst_max:"", sel:null };
@@ -323,7 +329,6 @@ $("#form").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.pa
 $("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load()};
 $("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],has_bio:false,
   bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
-if(!IMG_BASE) $("#img-note").textContent="Image hosting is being configured; thumbnails appear once it is live.";
 
 fetch("/api/search?per_page=1").then(r=>r.json()).then(d=>{
   $("#s-images").textContent=fmt(d.total);

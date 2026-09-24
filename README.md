@@ -18,7 +18,7 @@ running record of how it was all provisioned.
 | Repository | ✅ | this repo |
 | B2 bucket + credentials | ✅ | `retinaoct` private, `us-east-005`, round-trip verified |
 | Cloudflare DNS token | ✅ | `retinaoct-deploy`, all permissions verified |
-| Website | ✅ | live at **https://retinaoct.com** |
+| Website | ✅ | searchable OLIVES atlas — see [`docs/atlas.md`](docs/atlas.md) |
 | Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
 | Datasets staged | ✅ | 250,603 objects, 67.91 GB — see [`docs/datasets.md`](docs/datasets.md) |
 | B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
@@ -70,6 +70,7 @@ reversible at low cost if requirements change.
 ├── SETUP.md           detailed provisioning log, decisions, and rationale
 ├── docs/
 │   ├── runbook.md     day-to-day operational commands
+│   ├── atlas.md       the search site: stack, endpoints, decisions
 │   ├── datasets.md    dataset sources, verification, staging
 │   └── biomarkers.md  biomarker extraction plan and label inventory
 ├── scripts/           data staging scripts (provenance)
