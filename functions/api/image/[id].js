@@ -1,6 +1,7 @@
 import { BIOMARKERS } from "../_lib.js";
 
 export async function onRequestGet({ params, env }) {
+  try {
   const id = parseInt(params.id);
   if (!Number.isInteger(id)) return Response.json({ error: "bad id" }, { status: 400 });
 
@@ -28,4 +29,8 @@ export async function onRequestGet({ params, env }) {
     has_labels: !!bio,
     same_eye: siblings.results,
   }, { headers: { "cache-control": "public, max-age=300" } });
+  } catch (err) {
+    return Response.json({ error: "lookup failed", detail: String(err && err.message || err) },
+                         { status: 500 });
+  }
 }

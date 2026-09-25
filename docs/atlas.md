@@ -89,6 +89,68 @@ base URL, and delete `functions/img/`. Nothing else changes.
 
 ---
 
+## D1 read cost — the thing that nearly broke this
+
+D1 bills by **rows read**, and the free tier allows 5 million per day. The first
+implementation blew through that in about six page views.
+
+### What went wrong
+
+Facet counts were computed live on every request: a `COUNT(*)`, three
+`GROUP BY`s and a 16-column `SUM`, each spanning all 78,283 rows.
+
+| Query | Rows read |
+|---|---:|
+| `COUNT(*)` with LEFT JOIN biomarkers | 156,566 |
+| `GROUP BY trial` / `eye` / `visit` | 78,283 each |
+| 16-column `SUM` via LEFT JOIN | 156,566 |
+| **per search** | **~410,000** |
+
+The page also fired **two** searches per load — one for the hero counters, one
+for the grid — so a single visit cost ~820,000 rows, 16% of the daily
+allowance.
+
+**Indexes did not help.** All eight were present and correct. An index speeds
+up *lookups*; it does nothing for aggregates spanning the whole table. A bare
+`SELECT COUNT(*) FROM images` was measured at 78,283 rows read with every index
+in place.
+
+### The fixes
+
+**1. Precomputed facets.** `facets_global` holds one row: a 992-byte JSON blob
+with all unfiltered counts. Requests with no filters — the homepage and most
+traffic — read that single row instead of scanning.
+
+**2. A composite index for the default sort.** `ORDER BY has_biomarkers DESC,
+biomarker_count DESC, id` had no supporting index, so returning 24 rows meant
+scanning and sorting the entire table — 156,566 rows read. Adding
+`idx_img_sort_default` on those three columns in matching directions cut it
+to exactly 24.
+
+**3. One request per page load**, not two. Hero counters reuse the grid's
+response.
+
+**4. `facets=0`** so paging does not recompute facets.
+
+### Measured result
+
+| Path | Before | After |
+|---|---:|---:|
+| Unfiltered search | ~410,000 | **25** |
+| Results page (default sort) | 156,566 | **24** |
+| Detail lookup | — | **1** |
+| `sort=cst_desc` | — | 99 |
+| Filtered (`eye=OS`) count | — | 31,297 |
+
+Roughly a **16,000×** reduction on the common path. Filtered searches still
+scan the matching subset, which is inherent to counting matches, but they are
+edge-cached for an hour.
+
+**If `facets_global` goes stale**, regenerate it whenever the index is rebuilt —
+it is derived data, not a source of truth.
+
+---
+
 ## Design decisions
 
 **Facets reflect the data, not the mockup.** The original design showed

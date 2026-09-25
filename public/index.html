@@ -149,13 +149,14 @@ const imgUrl = k => IMG_BASE && k ? IMG_BASE.replace(/\/$/,"") + "/" + k : null;
     </g></svg>`;
 })();
 
-function qs(){
+function qs(opts={}){
   const u=new URLSearchParams();
   if(state.q) u.set("q",state.q);
   for(const k of ["trial","eye","visit","bio"]) if(state[k].length) u.set(k,state[k].join(","));
   if(state.has_bio) u.set("has_bio","1");
   for(const k of ["bcva_min","bcva_max","cst_min","cst_max"]) if(state[k]!=="") u.set(k,state[k]);
   u.set("sort",state.sort); u.set("page",state.page); u.set("per_page",PER);
+  if(opts.noFacets) u.set("facets","0");
   return u.toString();
 }
 function toggle(key,val){
@@ -164,15 +165,21 @@ function toggle(key,val){
   state.page=1; load();
 }
 
-async function load(){
+async function load(opts={}){
   $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Loading…</div>`;
-  const r=await fetch("/api/search?"+qs());
+  const r=await fetch("/api/search?"+qs(opts));
   if(!r.ok){ $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Search failed (${r.status}).</div>`; return; }
   const d=await r.json();
-  render(d); renderFacets(d.facets,d.total);
+  render(d); if(d.facets) renderFacets(d.facets,d.total);
 }
 
+let heroSet=false;
 function render(d){
+  if(!heroSet && d.facets && d.total!=null){      // first unfiltered load carries global totals
+    $("#s-images").textContent=fmt(d.total);
+    $("#s-labelled").textContent=fmt(d.facets.labelled);
+    heroSet=true;
+  }
   $("#n").textContent = fmt(d.total)+" result"+(d.total===1?"":"s");
   const from=(d.page-1)*d.per_page+1, to=Math.min(d.page*d.per_page,d.total);
   $("#showing").textContent = d.total ? `Showing ${fmt(from)}–${fmt(to)}` : "";
@@ -206,8 +213,8 @@ function render(d){
     <span>Page ${fmt(d.page)} of ${fmt(pages)}</span>
     <button ${d.page>=pages?"disabled":""} id="next">Next →</button>` : "";
   const prev=$("#prev"), next=$("#next");
-  if(prev) prev.onclick=()=>{state.page--;load();window.scrollTo({top:340,behavior:"smooth"})};
-  if(next) next.onclick=()=>{state.page++;load();window.scrollTo({top:340,behavior:"smooth"})};
+  if(prev) prev.onclick=()=>{state.page--;load({noFacets:true});window.scrollTo({top:340,behavior:"smooth"})};
+  if(next) next.onclick=()=>{state.page++;load({noFacets:true});window.scrollTo({top:340,behavior:"smooth"})};
 
   document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openDetail(+c.dataset.id));
 }
@@ -330,10 +337,6 @@ $("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load()};
 $("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],has_bio:false,
   bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
 
-fetch("/api/search?per_page=1").then(r=>r.json()).then(d=>{
-  $("#s-images").textContent=fmt(d.total);
-  $("#s-labelled").textContent=fmt(d.facets.labelled);
-});
 load();
 </script>
 </body>
