@@ -37,14 +37,14 @@ export async function onRequestGet({ request, env }) {
     if (!filtered) {
       const [rows, g] = await Promise.all([
         rowsQ.all(),
-        wantFacets ? env.DB.prepare("SELECT payload FROM facets_global WHERE id=1").first() : null,
+        env.DB.prepare("SELECT payload FROM facets_global WHERE id=1").first(),
       ]);
-      const f = g ? JSON.parse(g.payload) : null;
+      const f = JSON.parse(g.payload);
       return json({
-        total: f ? f.total : null,
+        total: f.total,                  // always present: the pager depends on it
         page, per_page: per,
         results: rows.results,
-        facets: f ? shape(f) : null,
+        facets: wantFacets ? shape(f) : null,
       }, 3600);
     }
 

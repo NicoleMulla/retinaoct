@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Retina OCT — searchable OCT image atlas</title>
 <meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations and clinical metadata.">
-<link rel="stylesheet" href="styles.css?v=95eb3a56">
+<link rel="stylesheet" href="styles.css?v=f299e36b">
 <link rel="icon" href="favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -189,14 +189,7 @@ function render(d){
       </div></article>`;
   }).join("") : `<div class="empty" style="grid-column:1/-1">No images match these filters.</div>`;
 
-  const pages=Math.ceil(d.total/d.per_page)||1;
-  $("#pager").innerHTML = pages>1 ? `
-    <button ${d.page<=1?"disabled":""} id="prev">← Previous</button>
-    <span>Page ${fmt(d.page)} of ${fmt(pages)}</span>
-    <button ${d.page>=pages?"disabled":""} id="next">Next →</button>` : "";
-  const prev=$("#prev"), next=$("#next");
-  if(prev) prev.onclick=()=>{state.page--;load({noFacets:true});window.scrollTo({top:340,behavior:"smooth"})};
-  if(next) next.onclick=()=>{state.page++;load({noFacets:true});window.scrollTo({top:340,behavior:"smooth"})};
+  renderPager(Math.ceil(d.total/d.per_page)||1, d.page);
 
   document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openDetail(+c.dataset.id));
 }
@@ -258,6 +251,44 @@ function renderFacets(f,total){
     else toggle(k,b.dataset.v);
     state.page=1; load();
   });
+}
+
+function renderPager(pages, page){
+  const el=$("#pager");
+  if(pages<=1){ el.innerHTML=""; return; }
+
+  // window of page numbers around the current page, with ellipses and ends
+  const win=[], push=n=>{ if(n>=1&&n<=pages&&!win.includes(n)) win.push(n); };
+  push(1); push(2);
+  for(let i=page-2;i<=page+2;i++) push(i);
+  push(pages-1); push(pages);
+  win.sort((a,b)=>a-b);
+
+  let items="", last=0;
+  for(const n of win){
+    if(n-last>1) items+=`<span class="gap">…</span>`;
+    items+=`<button class="pg${n===page?" on":""}" data-p="${n}"${n===page?' aria-current="page"':''}>${fmt(n)}</button>`;
+    last=n;
+  }
+
+  el.innerHTML=`
+    <button class="pg nav" data-p="${page-1}" ${page<=1?"disabled":""} aria-label="Previous page">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m15 6-6 6 6 6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Previous</span></button>
+    <div class="pg-nums">${items}</div>
+    <button class="pg nav" data-p="${page+1}" ${page>=pages?"disabled":""} aria-label="Next page">
+      <span>Next</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="m9 6 6 6-6 6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <form class="pg-jump" id="pg-jump">
+      <label>Go to<input type="number" min="1" max="${pages}" placeholder="${fmt(page)}" aria-label="Page number"></label>
+    </form>`;
+
+  const go=n=>{ n=Math.min(Math.max(1,n),pages); if(n===page) return;
+    state.page=n; load({noFacets:true});
+    window.scrollTo({top:$("#search").getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"}); };
+  el.querySelectorAll("button[data-p]").forEach(b=>{ if(!b.disabled) b.onclick=()=>go(+b.dataset.p); });
+  const jf=$("#pg-jump");
+  if(jf) jf.onsubmit=e=>{ e.preventDefault(); const v=parseInt(jf.querySelector("input").value); if(v) go(v); };
 }
 
 async function openDetail(id){
