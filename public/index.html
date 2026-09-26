@@ -64,7 +64,11 @@
         </div>
       </div>
     </div>
-    <figure class="hero-art" id="hero-art"></figure>
+    <figure class="hero-art">
+      <img src="/hero.webp" width="1120" height="340" alt="Retinal OCT B-scan showing the foveal contour"
+           fetchpriority="high" decoding="async">
+      <figcaption>OCT_0025331 · TREX-DME · right eye · CST 277 µm</figcaption>
+    </figure>
   </div>
 </section>
 
@@ -130,24 +134,6 @@ const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[
 const $ = s => document.querySelector(s);
 const fmt = n => (n ?? 0).toLocaleString();
 const imgUrl = k => IMG_BASE && k ? IMG_BASE.replace(/\/$/,"") + "/" + k : null;
-
-/* stylised B-scan for the hero */
-(function(){
-  const L=[[78,58,2,"#7fd4e8",.5],[95,46,3.2,"#f2b872",.5],[110,34,2.4,"#e8944a",.6],
-           [124,21,3,"#f6c98d",.45],[139,8,2.2,"#e07b34",.58],[156,2,3.6,"#ffd9a0",.85],
-           [167,0,4.4,"#ff9f45",.95],[180,0,6,"#8a4a22",.4],[196,0,9,"#5c3018",.26]];
-  const p=(y,d)=>d===0?`M0,${y} L900,${y}`:
-    `M0,${y} L300,${y} C372,${y} 396,${y+d} 450,${y+d} C504,${y+d} 528,${y} 600,${y} L900,${y}`;
-  $("#hero-art").innerHTML=`<svg viewBox="0 0 900 280" role="img" aria-label="Illustrative OCT B-scan">
-    <defs><linearGradient id="v" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#05070c"/><stop offset="55%" stop-color="#0a0d14"/>
-      <stop offset="100%" stop-color="#140d08"/></linearGradient>
-      <filter id="s"><feGaussianBlur stdDeviation="1.1"/></filter></defs>
-    <rect width="900" height="280" fill="url(#v)"/>
-    <g fill="none" stroke-linecap="round" filter="url(#s)">
-    ${L.map(([y,d,w,c,o])=>`<path d="${p(y,d)}" stroke="${c}" stroke-width="${w}" opacity="${o}"/>`).join("")}
-    </g></svg>`;
-})();
 
 function qs(opts={}){
   const u=new URLSearchParams();
