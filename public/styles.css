@@ -52,14 +52,18 @@ nav a:hover{color:#fff}
 .stat b{display:block;font-size:18px;letter-spacing:-.02em;line-height:1.2}
 .stat span{display:block;font-size:11.5px;color:#a9bbdd}
 .stat svg{color:var(--brand-2);flex:none}
-/* the scan sits behind the copy: no frame, no caption, dissolved into the navy */
-.hero-bg{position:absolute;inset:0 0 0 auto;width:min(66%,980px);z-index:1;pointer-events:none}
-.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:52% 46%;
-  opacity:.42;filter:contrast(1.06) brightness(1.02);
-  -webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.55) 34%,#000 68%);
-          mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.55) 34%,#000 68%)}
+/* The scan's own background is black. Screen blending drops that black away so
+   the navy shows through and only the luminous retinal bands remain — the
+   image merges with the hero instead of sitting on it as a dark rectangle. */
+.hero-bg{position:absolute;inset:0 0 0 auto;width:min(68%,1020px);pointer-events:none}
+.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:52% 48%;
+  mix-blend-mode:screen;opacity:.85;filter:contrast(1.12) brightness(.98);
+  -webkit-mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.5) 30%,#000 62%);
+          mask-image:linear-gradient(to right,transparent 0%,rgba(0,0,0,.5) 30%,#000 62%)}
+/* soften where the band meets the top and bottom edges of the banner */
 .hero-bg::after{content:"";position:absolute;inset:0;
-  background:linear-gradient(to bottom,var(--navy-2) 0%,transparent 26%,transparent 68%,var(--navy-3) 100%)}
+  background:linear-gradient(to bottom,rgba(11,24,54,.85) 0%,transparent 18%,
+                             transparent 74%,rgba(27,47,102,.9) 100%)}
 
 /* layout */
 .app{display:grid;grid-template-columns:262px minmax(0,1fr) 352px;gap:18px;
