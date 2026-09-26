@@ -6,3 +6,5 @@ node_modules/
 .wrangler/
 *.db
 *.sql
+__pycache__/
+*.pyc
