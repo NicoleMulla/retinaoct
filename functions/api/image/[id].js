@@ -28,7 +28,7 @@ export async function onRequestGet({ params, env }) {
     biomarkers,
     has_labels: !!bio,
     same_eye: siblings.results,
-  }, { headers: { "cache-control": "public, max-age=300" } });
+  }, { headers: { "cache-control": "public, max-age=0, must-revalidate, s-maxage=300" } });
   } catch (err) {
     return Response.json({ error: "lookup failed", detail: String(err && err.message || err) },
                          { status: 500 });

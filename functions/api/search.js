@@ -12,7 +12,20 @@ import { BIOMARKERS, buildFilter, SORTS } from "./_lib.js";
  *      does not recompute them.
  * Responses are edge-cached, so repeat visitors cost nothing at all.
  */
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet(ctx) {
+  const { request, env, waitUntil } = ctx;
+  // Pages Functions are not edge-cached by default, so cache explicitly.
+  // Browsers revalidate every time (max-age=0) while repeats are served from
+  // the edge, which is what keeps D1 row reads down.
+  const cache = caches.default;
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const res = await handle(ctx);
+  if (res.status === 200) waitUntil(cache.put(request, res.clone()));
+  return res;
+}
+
+async function handle({ request, env }) {
   try {
     const url = new URL(request.url);
     const { sql: where, bind } = buildFilter(url);
@@ -99,8 +112,19 @@ function shape(f) {
       .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
   };
 }
+/**
+ * Cache at Cloudflare's edge, never in the browser.
+ *
+ * `max-age=0` makes the browser revalidate every time, so a deployed change to
+ * the response shape takes effect immediately instead of being masked by a
+ * stale copy. `s-maxage` still lets the edge serve repeats, which is what
+ * keeps D1 row reads down.
+ */
 function json(body, maxAge) {
   return Response.json(body, {
-    headers: { "cache-control": `public, max-age=${maxAge}, stale-while-revalidate=86400` },
+    headers: {
+      "cache-control": `public, max-age=0, must-revalidate, s-maxage=${maxAge}, stale-while-revalidate=86400`,
+      "vary": "accept-encoding",
+    },
   });
 }
