@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1836">
 <title>Retina OCT — searchable OCT image atlas</title>
 <meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations and clinical metadata.">
-<link rel="stylesheet" href="styles.css?v=f299e36b">
+<link rel="stylesheet" href="styles.css?v=1ae2c378">
 <link rel="icon" href="favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -30,6 +31,9 @@
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.9"/><path d="M15.6 15.6 21 21" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
       </button>
       <span class="hdr-div"></span>
+      <button class="hdr-icon only-mobile" id="menu-btn" aria-label="Menu" aria-expanded="false">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+      </button>
       <a class="hdr-btn ghost" href="https://github.com/NicoleMulla/retinaoct" target="_blank" rel="noopener">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
         <span>GitHub</span>
@@ -37,6 +41,16 @@
     </div>
   </div>
 </header>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<nav class="sheet menu-sheet" id="menu-sheet" aria-label="Site menu" hidden>
+  <div class="grip" aria-hidden="true"></div>
+  <a href="/">Explore</a>
+  <a href="/about">About</a>
+  <a href="/data-sources">Data sources</a>
+  <a href="https://github.com/NicoleMulla/retinaoct" target="_blank" rel="noopener">GitHub repository</a>
+</nav>
 
 <section class="hero">
   <div class="hero-bg" aria-hidden="true"><img src="/hero.webp?v=1eaf4bbe" width="1960" height="620" alt="" decoding="async" fetchpriority="high"></div>
@@ -70,11 +84,23 @@
 
 <main class="wrap app">
 
-  <aside class="panel facets">
+  <aside class="panel facets sheet" id="facets" aria-label="Filters">
+    <div class="grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <strong>Filters</strong>
+      <button class="sheet-x" data-close aria-label="Close filters">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-scroll">
     <div class="facet-head"><h2>Active filters</h2><button class="link" id="clear">Clear all</button></div>
     <div class="chips" id="chips"></div>
     <div class="count-big"><b id="count">—</b><span id="count-sub">loading…</span></div>
     <div id="groups"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn" data-close id="apply-filters">Show results</button>
+    </div>
   </aside>
 
   <section>
@@ -106,10 +132,24 @@
     <div class="pager" id="pager"></div>
   </section>
 
-  <aside class="panel detail" id="detail">
-    <div class="empty">Select an image to see its metadata and biomarkers.</div>
+  <aside class="panel detail sheet" id="detail" aria-label="Image details">
+    <div class="grip" aria-hidden="true"></div>
+    <div id="detail-body">
+      <div class="empty">Select an image to see its metadata and biomarkers.</div>
+    </div>
   </aside>
 </main>
+
+<div class="mobile-bar" id="mobile-bar">
+  <button class="mb-btn primary" id="mb-filters">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M6.5 12h11M10 18h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    Filters<span class="mb-badge" id="mb-count" hidden>0</span>
+  </button>
+  <span class="mb-results" id="mb-results"></span>
+  <button class="mb-btn" id="mb-top" aria-label="Back to top">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 19V6M6 12l6-6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
 
 <footer class="wrap">
   <p class="note"><strong>Research use only.</strong> Not a medical device; not for
@@ -191,6 +231,7 @@ function render(d){
   }).join("") : `<div class="empty" style="grid-column:1/-1">No images match these filters.</div>`;
 
   renderPager(Math.ceil(d.total/d.per_page)||1, d.page);
+  syncMobileBar(d.total);
 
   document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openDetail(+c.dataset.id));
 }
@@ -295,7 +336,8 @@ function renderPager(pages, page){
 async function openDetail(id){
   state.sel=id;
   document.querySelectorAll(".card").forEach(c=>c.classList.toggle("sel",+c.dataset.id===id));
-  const d=$("#detail"); d.innerHTML=`<div class="empty">Loading…</div>`;
+  const d=$("#detail-body"); d.innerHTML=`<div class="empty">Loading…</div>`;
+  if(isMobile()) openSheet($("#detail"));
   const r=await fetch("/api/image/"+id+"?v="+API_V);
   if(!r.ok){ d.innerHTML=`<div class="empty">Could not load image ${id}.</div>`; return; }
   const m=await r.json();
@@ -335,8 +377,11 @@ async function openDetail(id){
                  :`<div style="aspect-ratio:1;background:#0a0d14;border-radius:5px" data-id="${s.id}"></div>`;}).join("")}</div>`:""}
     <div class="detail-foot"><button class="btn ghost" id="copy">Copy image path</button></div>`;
 
-  d.querySelector("#close").onclick=()=>{state.sel=null;d.innerHTML=`<div class="empty">Select an image to see its metadata and biomarkers.</div>`;
-    document.querySelectorAll(".card").forEach(c=>c.classList.remove("sel"))};
+  d.querySelector("#close").onclick=()=>{
+    if(isMobile()){ closeSheet(); }
+    state.sel=null;
+    d.innerHTML=`<div class="empty">Select an image to see its metadata and biomarkers.</div>`;
+    document.querySelectorAll(".card").forEach(c=>c.classList.remove("sel"));};
   d.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
     d.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
     $("#tab-d").hidden = t.dataset.t!=="d"; $("#tab-b").hidden = t.dataset.t!=="b";
@@ -344,6 +389,87 @@ async function openDetail(id){
   d.querySelectorAll(".strip [data-id]").forEach(el=>el.onclick=()=>openDetail(+el.dataset.id));
   d.querySelector("#copy").onclick=e=>{navigator.clipboard?.writeText(m.path);e.target.textContent="Copied";
     setTimeout(()=>e.target.textContent="Copy image path",1400)};
+}
+
+/* ─────────────── mobile sheets ─────────────── */
+const mq = window.matchMedia("(max-width:860px)");
+const isMobile = () => mq.matches;
+let openEl=null, lockedY=0;
+
+function lockScroll(){
+  lockedY = window.scrollY;
+  document.body.style.cssText += `position:fixed;top:${-lockedY}px;left:0;right:0;width:100%`;
+}
+function unlockScroll(){
+  document.body.style.position=""; document.body.style.top="";
+  document.body.style.left=""; document.body.style.right=""; document.body.style.width="";
+  window.scrollTo(0, lockedY);
+}
+function openSheet(el){
+  if(!el || openEl===el) return;
+  if(openEl) openEl.classList.remove("open");
+  else lockScroll();
+  const sc=$("#scrim");
+  el.hidden=false; sc.hidden=false;
+  void el.offsetHeight;                       // commit the closed state so the
+  el.classList.add("open");                   // transition actually runs; rAF is
+  sc.classList.add("on");                     // throttled in background frames
+  openEl=el;
+  el.setAttribute("aria-modal","true");
+  const btn=el.id==="menu-sheet"?$("#menu-btn"):null;
+  if(btn) btn.setAttribute("aria-expanded","true");
+}
+function closeSheet(){
+  if(!openEl) return;
+  const el=openEl, sc=$("#scrim");
+  el.classList.remove("open"); sc.classList.remove("on");
+  el.removeAttribute("aria-modal");
+  $("#menu-btn")?.setAttribute("aria-expanded","false");
+  openEl=null; unlockScroll();
+  setTimeout(()=>{ if(!openEl){ el.hidden=true; sc.hidden=true; el.style.transform=""; } }, 300);
+}
+
+/* drag the grip downwards to dismiss */
+function draggable(el){
+  const grip=el.querySelector(".grip"); if(!grip) return;
+  let y0=null, dy=0;
+  const start=e=>{ y0=e.touches[0].clientY; dy=0; el.style.transition="none"; };
+  const move=e=>{ if(y0==null) return;
+    dy=Math.max(0, e.touches[0].clientY-y0);
+    if(dy>0){ e.preventDefault(); el.style.transform=`translateY(${dy}px)`; } };
+  const end=()=>{ if(y0==null) return;
+    el.style.transition=""; el.style.transform="";
+    if(dy>90) closeSheet();
+    y0=null; };
+  grip.addEventListener("touchstart",start,{passive:true});
+  grip.addEventListener("touchmove",move,{passive:false});
+  grip.addEventListener("touchend",end);
+  grip.addEventListener("touchcancel",end);
+}
+["#facets","#detail","#menu-sheet"].forEach(sel=>draggable($(sel)));
+
+$("#scrim").onclick=closeSheet;
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeSheet);
+$("#menu-btn").onclick=()=>openEl===$("#menu-sheet")?closeSheet():openSheet($("#menu-sheet"));
+$("#mb-filters").onclick=()=>openSheet($("#facets"));
+$("#mb-top").onclick=()=>window.scrollTo({top:0,behavior:"smooth"});
+
+/* sheets are a phone affordance only — reset if the viewport grows */
+mq.addEventListener("change",e=>{ if(!e.matches) closeSheet(); });
+
+/* keep the bottom bar in step with the current query */
+function syncMobileBar(total){
+  const n = state.bio.length + state.trial.length + state.eye.length + state.visit.length
+          + (state.has_bio?1:0) + (state.q?1:0)
+          + ["bcva_min","bcva_max","cst_min","cst_max"].filter(k=>state[k]!=="").length;
+  const badge=$("#mb-count");
+  badge.textContent=n; badge.hidden = n===0;
+  if(total!=null){
+    $("#mb-results").textContent = `${fmt(total)} image${total===1?"":"s"}`;
+    const ap=$("#apply-filters");
+    if(ap) ap.textContent = `Show ${fmt(total)} result${total===1?"":"s"}`;
+  }
 }
 
 $("#search").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.page=1;load()};

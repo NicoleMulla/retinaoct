@@ -1,0 +1,4 @@
+timm==1.0.30
+torch==2.4.0
+pillow>=10.0
+numpy>=1.24

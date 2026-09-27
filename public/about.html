@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>About — Retina OCT</title>
 <meta name="description" content="What the Retina OCT atlas contains, how biomarkers are attributed, and how it is built.">
-<link rel="stylesheet" href="/styles.css?v=f299e36b">
+<link rel="stylesheet" href="/styles.css?v=1ae2c378">
 <link rel="icon" href="/favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -29,6 +29,9 @@
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.8" stroke="currentColor" stroke-width="1.9"/><path d="M15.6 15.6 21 21" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
       </a>
       <span class="hdr-div"></span>
+      <button class="hdr-icon only-mobile" id="menu-btn" aria-label="Menu" aria-expanded="false">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+      </button>
       <a class="hdr-btn ghost" href="https://github.com/NicoleMulla/retinaoct" target="_blank" rel="noopener">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
         <span>GitHub</span>
@@ -37,6 +40,16 @@
     </div>
   </div>
 </header>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<nav class="sheet menu-sheet" id="menu-sheet" aria-label="Site menu" hidden>
+  <div class="grip" aria-hidden="true"></div>
+  <a href="/">Explore</a>
+  <a href="/about">About</a>
+  <a href="/data-sources">Data sources</a>
+  <a href="https://github.com/NicoleMulla/retinaoct" target="_blank" rel="noopener">GitHub repository</a>
+</nav>
 <main class="wrap page">
   <h1>About</h1>
   <p class="sub">A searchable atlas of retinal optical coherence tomography B-scans,
@@ -124,5 +137,38 @@
   No patient-identifiable data is published.</p>
   <div class="foot-row"><span>© 2026 Retina OCT</span><span>retinaoct.com</span></div>
 </footer>
+
+<script>
+/* minimal menu sheet for the content pages */
+(function(){
+  const sheet=document.getElementById("menu-sheet"), scrim=document.getElementById("scrim"),
+        btn=document.getElementById("menu-btn");
+  if(!sheet||!scrim||!btn) return;
+  let y=0, open=false;
+  const show=()=>{ y=window.scrollY;
+    document.body.style.cssText+=`position:fixed;top:${-y}px;left:0;right:0;width:100%`;
+    sheet.hidden=false; scrim.hidden=false;
+    void sheet.offsetHeight;
+    sheet.classList.add("open"); scrim.classList.add("on");
+    btn.setAttribute("aria-expanded","true"); open=true; };
+  const hide=()=>{ if(!open) return;
+    sheet.classList.remove("open"); scrim.classList.remove("on");
+    btn.setAttribute("aria-expanded","false");
+    document.body.style.position=""; document.body.style.top="";
+    document.body.style.left=""; document.body.style.right=""; document.body.style.width="";
+    window.scrollTo(0,y); open=false;
+    setTimeout(()=>{ if(!open){ sheet.hidden=true; scrim.hidden=true; sheet.style.transform=""; } },300); };
+  btn.onclick=()=>open?hide():show();
+  scrim.onclick=hide;
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape") hide(); });
+  const grip=sheet.querySelector(".grip");
+  let y0=null,dy=0;
+  grip.addEventListener("touchstart",e=>{y0=e.touches[0].clientY;dy=0;sheet.style.transition="none";},{passive:true});
+  grip.addEventListener("touchmove",e=>{ if(y0==null)return; dy=Math.max(0,e.touches[0].clientY-y0);
+    if(dy>0){e.preventDefault();sheet.style.transform=`translateY(${dy}px)`;} },{passive:false});
+  grip.addEventListener("touchend",()=>{ if(y0==null)return; sheet.style.transition="";
+    sheet.style.transform=""; if(dy>90) hide(); y0=null; });
+})();
+</script>
 </body>
 </html>
