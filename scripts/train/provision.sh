@@ -10,15 +10,20 @@ set -euo pipefail
 API="https://console.vast.ai/api/v0"
 # instances/ moved to v1; bundles, asks and users/current are still v0.
 APIV1="https://console.vast.ai/api/v1"
-GPU="${GPU:-RTX 4090}"
-DISK="${DISK:-80}"
-IMAGE="${IMAGE:-pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel}"
-MAX_DPH="${MAX_DPH:-0.60}"
+export GPU="${GPU:-RTX 4090}"
+export DISK="${DISK:-80}"
+IMAGE="${IMAGE:-pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime}"  # runtime, not devel: ~3GB vs ~9GB to pull
+export MAX_DPH="${MAX_DPH:-0.60}"
 DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1
 
 : "${VAST_API_KEY:?VAST_API_KEY not set — run under 'doppler run --'}"
 
-auth=(-H "Authorization: Bearer $VAST_API_KEY" -H "Content-Type: application/json")
+# curl argv is visible in `ps`; keep the bearer token in a 0600 file instead.
+VAST_AUTH_CFG="$(mktemp -t vast_auth_cfg)"
+chmod 600 "$VAST_AUTH_CFG"
+printf 'header = "Authorization: Bearer %s"\nheader = "Content-Type: application/json"\n' "$VAST_API_KEY" > "$VAST_AUTH_CFG"
+trap 'rm -f "$VAST_AUTH_CFG"' EXIT
+auth=(-K "$VAST_AUTH_CFG")
 
 echo "==> checking account"
 curl -s "${auth[@]}" "$API/users/current/" -o /tmp/vast_me.json
@@ -36,9 +41,9 @@ Q=$(python3 -c "
 import json,os
 print(json.dumps({'verified':{'eq':True},'rentable':{'eq':True},'num_gpus':{'eq':1},
  'gpu_name':{'eq':os.environ['GPU']},'disk_space':{'gte':int(os.environ['DISK'])+20},
- 'dph_total':{'lte':float(os.environ['MAX_DPH'])},'reliability2':{'gte':0.97},
- 'inet_down':{'gte':300},'order':[['dph_total','asc']],'type':'on-demand','limit':30}))" )
-GPU="$GPU" DISK="$DISK" MAX_DPH="$MAX_DPH" curl -s "${auth[@]}" "$API/bundles/" -d "$Q" -o /tmp/vast_offers.json
+ 'dph_total':{'lte':float(os.environ['MAX_DPH'])},'reliability2':{'gte':float(os.environ.get('MIN_REL','0.99'))},
+ 'inet_down':{'gte':float(os.environ.get('MIN_NET','500'))},'order':[['dph_total','asc']],'type':'on-demand','limit':30}))" )
+curl -s "${auth[@]}" "$API/bundles/" -d "$Q" -o /tmp/vast_offers.json
 
 python3 - <<'PY'
 import json
@@ -66,32 +71,35 @@ done
 [ -z "$NEW" ] && { echo "ABORT: no offer could be rented"; exit 1; }
 
 echo "==> waiting for instance to boot"
-for i in $(seq 1 60); do
+for i in $(seq 1 180); do
   curl -sL "${auth[@]}" "$APIV1/instances/" -o /tmp/vast_inst.json
-  S=$(python3 -c "
-import json
-d=json.load(open('/tmp/vast_inst.json'))['instances']
-m=[x for x in d if str(x['id'])=='$NEW']
-print(m[0]['actual_status'] if m and m[0].get('actual_status') else 'pending')")
+  S=$(VAST_WANT="$NEW" python3 -c '
+import json, os
+try:
+    d = json.load(open("/tmp/vast_inst.json")).get("instances", [])
+    m = [x for x in d if str(x.get("id")) == os.environ["VAST_WANT"]]
+    print(m[0].get("actual_status") or "pending" if m else "gone")
+except Exception:
+    print("err")')
   echo "    [$i] $S"
   [ "$S" = "running" ] && break
+  [ "$S" = "gone" ] && { echo "ABORT: instance disappeared"; exit 1; }
   sleep 10
 done
 
-python3 - <<PY
-import json
-d=json.load(open('/tmp/vast_inst.json'))['instances']
-m=[x for x in d if str(x['id'])=='$NEW']
-if m:
-    x=m[0]
-    print(f"""
-instance   {x['id']}
-gpu        {x.get('gpu_name')}  x{x.get('num_gpus')}
-cost       \${x.get('dph_total',0):.3f}/hr
-ssh        ssh -p {x.get('ssh_port')} root@{x.get('ssh_host')}
-status     {x.get('actual_status')}
-""")
-PY
 echo "$NEW" > /tmp/vast_instance_id
+VAST_WANT="$NEW" python3 -c '
+import json, os
+d = json.load(open("/tmp/vast_inst.json")).get("instances", [])
+m = [x for x in d if str(x.get("id")) == os.environ["VAST_WANT"]]
+if m:
+    x = m[0]
+    print("")
+    print("instance   %s" % x.get("id"))
+    print("gpu        %s x%s" % (x.get("gpu_name"), x.get("num_gpus")))
+    print("cost       $%.3f/hr" % (x.get("dph_total") or 0))
+    print("ssh        ssh -p %s root@%s" % (x.get("ssh_port"), x.get("ssh_host")))
+    print("status     %s" % x.get("actual_status"))
+    print("")'
 echo "==> instance id saved to /tmp/vast_instance_id"
 echo "    destroy with: doppler run -- ./scripts/train/destroy.sh"
