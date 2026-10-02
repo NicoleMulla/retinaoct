@@ -18,6 +18,18 @@ export const BIOMARKERS = [
 ];
 const KEYS = new Set(BIOMARKERS.map(([k]) => k));
 
+/**
+ * Biomarkers the model is allowed to predict. The other four had 1-5 positive
+ * patients in the 87-patient training set — too few to learn or validate — so
+ * the model emits nothing for them and they stay expert-only. See docs/scaling.md.
+ */
+export const MODEL_BIOMARKERS = new Set([
+  "atrophy_thinning", "drt_me", "ez_disruption", "fluid_irf", "fluid_srf",
+  "ir_hemorrhages", "ir_hrf", "preretinal_tissue", "shrm",
+  "vitreous_debris", "vitreous_full", "vitreous_partial",
+]);
+export const EXPERT_ONLY = BIOMARKERS.map(([k]) => k).filter(k => !MODEL_BIOMARKERS.has(k));
+
 /** Build a WHERE clause + bindings from query params. */
 export function buildFilter(url) {
   const p = url.searchParams;
@@ -36,6 +48,11 @@ export function buildFilter(url) {
   for (const k of list("bio")) if (KEYS.has(k)) where.push(`b.${k} = 1`);
 
   if (p.get("has_bio") === "1") where.push("i.has_biomarkers = 1");
+
+  // Provenance filter: expert annotation vs model inference. Reads a column on
+  // `images`, which is already scanned, so it costs no extra rows.
+  const src = (p.get("source") || "").trim();
+  if (src === "expert" || src === "model") { where.push("i.label_source = ?"); bind.push(src); }
 
   for (const [param, col, op] of [["bcva_min","bcva",">="],["bcva_max","bcva","<="],
                                   ["cst_min","cst",">="],["cst_max","cst","<="]]) {

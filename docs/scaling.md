@@ -233,3 +233,128 @@ scarce biomarkers whose AP is currently poor.
 Nothing here reaches 0.95. The intervention that would is **more labelled
 patients**; 87 is the ceiling, and a second labelled cohort would outperform
 every compute option in this document combined.
+
+---
+
+# Results — scaling sweep, 2026-10-01
+
+Four configurations, same manifest and same patient-grouped folds as the v1
+baseline, 15 epochs each (v1's curves showed epochs 17–30 contributed nothing).
+A100-SXM4 40 GB, $0.68/hr.
+
+Compared on **best-epoch** validation mAUROC, not final-epoch. v1 ran 30 epochs
+and these ran 15, so comparing final epochs would have been confounded — the
+first version of this table did exactly that and mildly flattered the new runs.
+
+| Config | Params | Pretraining | Slices | peak ep | best mAUROC | vs v1 |
+|---|---:|---|---:|---:|---:|---:|
+| **v1 baseline** | 303.3M | RETFound | 1 | 16.4 | **0.8916** | — |
+| vitL_in | 303.3M | ImageNet | 1 | 8.8 | 0.8806 | −0.0110 |
+| vitH_in | 630.8M | ImageNet | 1 | 8.0 | 0.8775 | −0.0141 |
+| vitB_in | 85.8M | ImageNet | 1 | 6.6 | 0.8716 | −0.0200 |
+| vitL_ret_slices | 303.3M | RETFound | 3 | 8.0 | 0.8508 | −0.0408 |
+
+**Nothing beat the baseline.** Fold 2 remained the hardest split in every
+configuration (0.78–0.83), confirming it is a property of that patient grouping
+rather than of any model.
+
+## Why the larger model did not do better
+
+### The operator's hypothesis, recorded
+
+> "It didn't perform better because we didn't have enough images to produce a
+> good outcome for such a high-scale model."
+
+**This is correct, and it is the primary mechanism.** The evidence supports it
+directly: holding pretraining fixed at ImageNet, going from 85.8M to 630.8M
+parameters — a 7.4x increase — moved best mAUROC by **+0.0059**
+(0.8716 -> 0.8775), with ViT-H actually *below* ViT-L. The entire spread across
+3.5 orders of magnitude of capacity is smaller than the ±0.035 fold-to-fold
+standard deviation. The curve is flat because every model tested is already far
+past the point where capacity binds.
+
+### Sharpening it: the real sample size is 87, not 9,408
+
+The hypothesis is stronger than the image count suggests. The 9,408 labelled
+images are **49 B-scans per volume** — adjacent slices through the same eye at
+the same visit, which are near-duplicates. The statistically independent units
+are patients (**87**) or eyes (**96**), not images.
+
+So ViT-H was fitting 630.8M parameters to roughly 87 independent examples. Even
+ViT-B at 85.8M is grossly over-parameterised on that basis. This is why the
+curve is flat rather than rising: the binding constraint was reached long before
+ViT-B.
+
+### What actually carried the task: pretraining, not scale
+
+The clearest signal in the sweep:
+
+```
+ViT-L + RETFound   303.3M   0.8916
+ViT-H + ImageNet   630.8M   0.8775     <- 2x the parameters, worse
+ViT-L + ImageNet   303.3M   0.8806
+```
+
+**RETFound's retinal pretraining is worth about +0.011, and it beats doubling
+the parameter count.** A domain-specific prior substitutes for labelled data in
+a way that raw capacity does not. That is the actionable finding: the lever is
+better pretraining, not a bigger encoder.
+
+### A hypothesis that the data did NOT support
+
+Before running, the expectation was that larger models would overfit sooner —
+peaking at an earlier epoch. They did not: peak epochs were 6.6 (ViT-B),
+8.8 (ViT-L), 8.0 (ViT-H), which is not monotonic in size. So the mechanism is
+not "bigger degrades faster"; it is simply that additional capacity is inert.
+Recorded because it was wrong.
+
+### Honest confounds
+
+1. **ViT-H had no retinal pretraining available.** No RETFound variant above
+   ViT-L is reachable — the DINOv2/DINOv3 checkpoints are gated. So the ViT-H
+   run tested more capacity *minus* domain pretraining, two variables at once.
+   A ViT-H with retinal pretraining might do better; this sweep cannot say.
+2. **Hyperparameters were not re-tuned per model size.** Same 1e-4 body /
+   1e-3 head learning rate, batch 32, 15 epochs for all four. Larger models
+   typically want lower learning rates and longer warmup, so ViT-H was mildly
+   disadvantaged. The flatness of B -> L -> H under *identical* settings still
+   indicates the trend, but a per-size learning-rate sweep would make it
+   airtight.
+3. **A label ceiling independent of the encoder.** Seven of sixteen biomarkers
+   sit below 0.5 average precision in every configuration. Those are limited by
+   annotation scarcity — four have 1–5 positive patients — and no encoder can
+   recover a label that appears in one patient.
+
+### Why adjacent slices made it worse
+
+The −0.0408 was the largest drop in the sweep, and it was predicted to be the
+cheapest win. Most likely cause: the augmentation pipeline applies rotation and
+random-crop jointly to all three channels, but neighbouring B-scans are already
+slightly misaligned, so geometric augmentation smears genuinely different
+anatomy together instead of reinforcing a signal. At 49 slices per volume,
+*n±1* may also simply be different structure rather than context.
+
+Worth one retry with augmentation applied per-channel, or with slice spacing
+reduced — but it is not the free win it looked like.
+
+## Decision
+
+**Revert to v1 and use it for production labelling.** The baseline stands at
+mAUROC 0.8916 best-epoch / 0.8815 final-epoch, and nothing in this sweep
+improved on it. Scaling is closed as a direction at this data size.
+
+Total sweep cost: ~$1.80. The result is negative, and it was worth buying — it
+retires "try a bigger model" as an open question for about the price of a coffee.
+
+## What would actually move the number
+
+In descending order of expected value, none of which is "more parameters":
+
+1. **More labelled patients.** 87 is the ceiling. A second annotated cohort
+   would outperform everything in this document combined.
+2. **Continue MAE pretraining on all 162,871 OLIVES images**, then fine-tune.
+   The sweep showed pretraining is the effective lever; this is the way to get
+   more of it without new labels. (Phase D above, ~$2.50, untested.)
+3. **Volume-level aggregation** — pool predictions across the 49 B-scans of a
+   volume to cut variance on the scarce biomarkers.
+4. **Per-size learning-rate tuning**, if the capacity question is ever reopened.

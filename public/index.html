@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1836">
 <title>Retina OCT — searchable OCT image atlas</title>
-<meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations and clinical metadata.">
+<meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations, model-inferred predictions, and clinical metadata.">
 <link rel="stylesheet" href="styles.css?v=1ae2c378">
 <link rel="icon" href="favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
@@ -57,9 +57,12 @@
   <div class="wrap hero-in">
     <div>
       <h1>Search a real OCT <em>dataset</em></h1>
-      <p>Explore retinal optical coherence tomography B-scans with expert biomarker
-         annotations, visual acuity and retinal thickness measurements from two
-         clinical trials.</p>
+      <p>Explore retinal optical coherence tomography B-scans from two clinical
+         trials, with visual acuity and retinal thickness measurements.
+         <strong>9,408 scans carry expert biomarker annotations</strong> from the
+         OLIVES investigators; the remaining 68,875 carry
+         <strong>model-inferred predictions</strong>, labelled as such throughout
+         and never mixed with expert gradings.</p>
       <div class="stats">
         <div class="stat">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="6" rx="8" ry="3.2" stroke="currentColor" stroke-width="1.6"/><path d="M4 6v12c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2V6" stroke="currentColor" stroke-width="1.6"/><path d="M4 12c0 1.8 3.6 3.2 8 3.2s8-1.4 8-3.2" stroke="currentColor" stroke-width="1.6"/></svg>
@@ -67,11 +70,15 @@
         </div>
         <div class="stat">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 19V9M9.3 19V4M14.7 19v-8M20 19v-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
-          <span><b id="s-labelled">—</b><span>Biomarker-labelled</span></span>
+          <span><b id="s-labelled">—</b><span>Expert-labelled</span></span>
+        </div>
+        <div class="stat">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 3l8.5 4.9v9.8L12 21.6 3.5 17.7V7.9L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <span><b id="s-modelled">—</b><span>Model-inferred</span></span>
         </div>
         <div class="stat">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <span><b>16</b><span>Expert biomarkers</span></span>
+          <span><b>16</b><span>Biomarkers</span></span>
         </div>
         <div class="stat">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.6"/><path d="M3.4 12h17.2M12 3.4c2.2 2.4 3.3 5.4 3.3 8.6S14.2 18.2 12 20.6c-2.2-2.4-3.3-5.4-3.3-8.6S9.8 5.8 12 3.4Z" stroke="currentColor" stroke-width="1.4"/></svg>
@@ -201,6 +208,7 @@ function render(d){
   if(!heroSet && d.facets && d.total!=null){      // first unfiltered load carries global totals
     $("#s-images").textContent=fmt(d.total);
     $("#s-labelled").textContent=fmt(d.facets.labelled);
+    if(d.facets.modelled!=null) $("#s-modelled").textContent=fmt(d.facets.modelled);
     heroSet=true;
   }
   $("#n").textContent = fmt(d.total)+" result"+(d.total===1?"":"s");
@@ -211,8 +219,12 @@ function render(d){
 
   $("#grid").innerHTML = d.results.length ? d.results.map(r=>{
     const u=imgUrl(r.thumb_key);
-    const bio = r.has_biomarkers
-      ? `<span class="badge ok">${r.biomarker_count} biomarker${r.biomarker_count===1?"":"s"}</span>`
+    // Provenance has to be visible in the grid, not only on the detail panel:
+    // expert annotation and model inference are not interchangeable evidence.
+    const bio = r.label_source === "expert"
+      ? `<span class="badge ok" title="Expert annotation from the OLIVES dataset">✓ Expert · ${r.biomarker_count}</span>`
+      : r.label_source === "model"
+      ? `<span class="badge model" title="Predicted by RETFound/OLIVES model — not expert annotation">◆ Model · ${r.biomarker_count}</span>`
       : `<span class="badge">Unlabelled</span>`;
     return `<article class="card ${state.sel===r.id?"sel":""}" data-id="${r.id}">
       <div class="thumb">${u?`<img loading="lazy" src="${u}" alt="">`:`<span class="ph">OCT B-scan</span>`}${bio}</div>
@@ -337,6 +349,46 @@ async function openDetail(id){
   state.sel=id;
   document.querySelectorAll(".card").forEach(c=>c.classList.toggle("sel",+c.dataset.id===id));
   const d=$("#detail-body"); d.innerHTML=`<div class="empty">Loading…</div>`;
+
+/* ---- biomarker provenance rendering -------------------------------------
+   Expert annotation and model inference must never look alike. Expert rows
+   show Present/Absent; model rows show a probability, and the four biomarkers
+   the model cannot predict show "Not assessed" rather than a fabricated
+   "Absent". See docs/scaling.md for why those four are excluded. */
+function provBanner(m){
+  const p=m.provenance||{};
+  if(p.kind==="expert") return `<div class="prov expert">
+    <b>✓ Expert annotation</b>
+    <span>Graded by the OLIVES study investigators. Present/absent as recorded in the dataset.</span></div>`;
+  const ood = p.verdict==="out_of_domain";
+  return `<div class="prov model">
+    <b>◆ Model inference — not expert annotation</b>
+    <span>Predicted by <code>${p.model||"model"}</code> (${p.architecture||""}), mean AUROC
+      ${p.mean_auroc!=null?p.mean_auroc.toFixed(3):"—"} on held-out patients.
+      Values are probabilities, not gradings.</span>
+    ${ood?`<span class="warn">⚠ This scan sits outside the distribution the model was validated on
+      (distance ${p.ood_distance!=null?Math.round(p.ood_distance):"—"}). Treat with extra caution.</span>`:""}
+  </div>`;
+}
+function bioRow(b){
+  if(b.unavailable==="not_predictable")
+    return `<div class="bio off"><span class="dot u"></span>${b.label}
+      <span class="v" title="Too few positive training patients for the model to predict this reliably">Not assessed</span></div>`;
+  if(b.source==="model"){
+    const pct=b.confidence!=null?Math.round(b.confidence*100):null;
+    return `<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}
+      <span class="v">${b.present?"Likely":"Unlikely"}${pct!=null?` <em>${pct}%</em>`:""}</span></div>`;
+  }
+  return `<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}
+    <span class="v">${b.present?"Present":"Absent"}</span></div>`;
+}
+function modelFoot(m){
+  const np=(m.provenance&&m.provenance.not_predicted)||[];
+  return `<div class="prov-foot">Research use only — not a medical device.
+    ${np.length?`${np.length} biomarkers are not assessed by the model because the training set
+    had too few positive patients to validate them.`:""}</div>`;
+}
+
   if(isMobile()) openSheet($("#detail"));
   const r=await fetch("/api/image/"+id+"?v="+API_V);
   if(!r.ok){ d.innerHTML=`<div class="empty">Could not load image ${id}.</div>`; return; }
@@ -367,9 +419,9 @@ async function openDetail(id){
       ${row(ICON.num,"DRSS",m.drss)}
     </div>
     <div id="tab-b" hidden class="rows">
-      ${m.has_labels
-        ? m.biomarkers.map(b=>`<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}<span class="v">${b.present?"Present":"Absent"}</span></div>`).join("")
-        : `<div class="empty" style="padding:24px 0">This image has clinical metadata but no expert biomarker annotation.</div>`}
+      ${m.has_labels ? provBanner(m) + m.biomarkers.map(b=>bioRow(b)).join("") +
+          (m.provenance && m.provenance.kind==="model" ? modelFoot(m) : "")
+        : `<div class="empty" style="padding:24px 0">This image has clinical metadata but no biomarker labels.</div>`}
     </div>
     ${m.same_eye.length?`<div class="sect-h">Other scans of this eye</div><div class="strip">${
       m.same_eye.slice(0,8).map(s=>{const su=imgUrl(s.thumb_key);

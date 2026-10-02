@@ -42,7 +42,7 @@ async function handle({ request, env }) {
     const rowsQ = env.DB.prepare(
       `SELECT i.id, i.trial, i.arm, i.subject, i.visit, i.eye, i.scan_index,
               i.patient_id, i.eye_id, i.bcva, i.cst,
-              i.has_biomarkers, i.biomarker_count, i.thumb_key
+              i.has_biomarkers, i.biomarker_count, i.thumb_key, i.label_source
        ${base} ORDER BY ${order} LIMIT ? OFFSET ?`
     ).bind(...bind, per, (page - 1) * per);
 
@@ -74,7 +74,8 @@ async function handle({ request, env }) {
         env.DB.prepare(`SELECT i.visit AS v, COUNT(*) AS n ${base} GROUP BY i.visit ORDER BY n DESC LIMIT 20`).bind(...bind).all(),
         env.DB.prepare(
           `SELECT ${BIOMARKERS.map(([k]) => `SUM(COALESCE(b.${k},0)) AS ${k}`).join(", ")},
-                  SUM(CASE WHEN i.has_biomarkers=1 THEN 1 ELSE 0 END) AS labelled ${bioBase}`
+                  SUM(CASE WHEN i.label_source='expert' THEN 1 ELSE 0 END) AS labelled,
+                  SUM(CASE WHEN i.label_source='model'  THEN 1 ELSE 0 END) AS modelled ${bioBase}`
         ).bind(...bind).first()
       );
     }
@@ -89,6 +90,7 @@ async function handle({ request, env }) {
         eye: fEye.results.filter(r => r.v),
         visit: fVisit.results.filter(r => r.v),
         labelled: fBio.labelled || 0,
+        modelled: fBio.modelled || 0,
         biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio[k] || 0 }))
                               .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
       } : null,
@@ -107,6 +109,7 @@ const LABEL = Object.fromEntries(BIOMARKERS);
 function shape(f) {
   return {
     trial: f.trial, eye: f.eye, visit: f.visit, labelled: f.labelled,
+    modelled: f.modelled || 0,
     biomarkers: Object.entries(f.biomarkers)
       .map(([key, count]) => ({ key, label: LABEL[key] || key, count }))
       .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
