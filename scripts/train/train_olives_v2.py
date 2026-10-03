@@ -113,6 +113,18 @@ def build_model(arch, weights, n_out, img_size):
         enc_missing = [k for k in missing if not k.startswith("head.")]
         if enc_missing: print(f"  WARNING {len(enc_missing)} encoder keys missing")
         src = RETFOUND
+    elif weights == "mae_olives":
+        # Encoder exported by mae_continue.py — RETFound after continued MAE
+        # pretraining on OLIVES. Same ViT-L shape, so it loads like RETFound.
+        m = timm.create_model(arch, **kw)
+        path = os.environ.get("OLIVES_MAE_ENCODER", "/workspace/mae_out/mae_olives_encoder.pt")
+        sd = torch.load(path, map_location="cpu", weights_only=False)
+        sd = sd.get("model", sd)
+        sd = {k.replace("module.", ""): v for k, v in sd.items() if not k.startswith("head.")}
+        missing, _ = m.load_state_dict(sd, strict=False)
+        enc_missing = [k for k in missing if not k.startswith("head.")]
+        if enc_missing: print(f"  WARNING {len(enc_missing)} encoder keys missing")
+        src = f"MAE-continued ({os.path.basename(path)})"
     elif weights == "imagenet":
         m = timm.create_model(arch, pretrained=True, num_classes=n_out,
                              **({"img_size": img_size} if img_size != 224 else {}))
@@ -163,7 +175,10 @@ def main():
     ap.add_argument("--wd", type=float, default=0.05)
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--encoder", default="vit_large_patch16_224")
-    ap.add_argument("--weights", default="retfound", choices=["retfound","imagenet","none"])
+    ap.add_argument("--weights", default="retfound",
+                    choices=["retfound","imagenet","none","mae_olives"],
+                    help="mae_olives = encoder from mae_continue.py, i.e. RETFound "
+                         "further pretrained on the OLIVES corpus")
     ap.add_argument("--slices", type=int, default=1, choices=[1,3])
     ap.add_argument("--img-size", type=int, default=224)
     ap.add_argument("--grad-ckpt", action="store_true", help="trade speed for VRAM")
