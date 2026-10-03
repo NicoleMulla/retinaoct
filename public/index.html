@@ -225,6 +225,8 @@ function render(d){
       ? `<span class="badge ok" title="Expert annotation from the OLIVES dataset">✓ Expert · ${r.biomarker_count}</span>`
       : r.label_source === "model"
       ? `<span class="badge model" title="Predicted by RETFound/OLIVES model — not expert annotation">◆ Model · ${r.biomarker_count}</span>`
+      : r.label_source === "rejected"
+      ? `<span class="badge reject" title="Outside the distribution the model was validated on — deliberately not assessed">⊘ Not assessed</span>`
       : `<span class="badge">Unlabelled</span>`;
     return `<article class="card ${state.sel===r.id?"sel":""}" data-id="${r.id}">
       <div class="thumb">${u?`<img loading="lazy" src="${u}" alt="">`:`<span class="ph">OCT B-scan</span>`}${bio}</div>
@@ -357,6 +359,12 @@ async function openDetail(id){
    "Absent". See docs/scaling.md for why those four are excluded. */
 function provBanner(m){
   const p=m.provenance||{};
+  if(m.label_source==="rejected") return `<div class="prov reject">
+    <b>⊘ Not assessed</b>
+    <span>This scan falls too far outside the distribution the model was validated on,
+      so no predictions were produced. It is kept in the archive rather than hidden;
+      absence of findings here means the model declined to judge, not that the retina
+      is normal.</span></div>`;
   if(p.kind==="expert") return `<div class="prov expert">
     <b>✓ Expert annotation</b>
     <span>Graded by the OLIVES study investigators. Present/absent as recorded in the dataset.</span></div>`;
@@ -419,7 +427,8 @@ function modelFoot(m){
       ${row(ICON.num,"DRSS",m.drss)}
     </div>
     <div id="tab-b" hidden class="rows">
-      ${m.has_labels ? provBanner(m) + m.biomarkers.map(b=>bioRow(b)).join("") +
+      ${m.label_source==="rejected" ? provBanner(m)
+        : m.has_labels ? provBanner(m) + m.biomarkers.map(b=>bioRow(b)).join("") +
           (m.provenance && m.provenance.kind==="model" ? modelFoot(m) : "")
         : `<div class="empty" style="padding:24px 0">This image has clinical metadata but no biomarker labels.</div>`}
     </div>

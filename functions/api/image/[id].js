@@ -13,6 +13,7 @@ export async function onRequestGet({ params, env }) {
   if (!img) return Response.json({ error: "not found" }, { status: 404 });
 
   const isModel = img.label_source === "model";
+  const isRejected = img.label_source === "rejected";
 
   // One row each. `biomarker_conf` exists only for model-inferred images, and is
   // read on the detail panel only — a tall values table would cost 16 rows here
@@ -62,6 +63,11 @@ export async function onRequestGet({ params, env }) {
       verdict: conf ? conf.verdict : null,
       not_predicted: BIOMARKERS.map(([k]) => k).filter(k => !MODEL_BIOMARKERS.has(k)),
       caveat: "Model inference, not expert annotation. Research use only; not a medical device.",
+    } : isRejected ? {
+      kind: "rejected",
+      reason: "Outside the distribution the model was validated on; no predictions produced.",
+      caveat: "Absence of findings here means the model declined to judge, not that the "
+              + "retina is normal.",
     } : { kind: "expert", source: "OLIVES dataset expert annotation" },
     same_eye: siblings.results,
   }, { headers: { "cache-control": "public, max-age=0, must-revalidate, s-maxage=300" } });
