@@ -358,3 +358,69 @@ In descending order of expected value, none of which is "more parameters":
 3. **Volume-level aggregation** — pool predictions across the 49 B-scans of a
    volume to cut variance on the scarce biomarkers.
 4. **Per-size learning-rate tuning**, if the capacity question is ever reopened.
+
+---
+
+# Results — MAE continuation, 2026-10-03
+
+RETFound's MAE pretraining continued for 50 epochs on the full 153,045-B-scan
+OLIVES corpus, then the biomarker head fine-tuned on the adapted encoder, same
+folds as every other run.
+
+Resumed from the official `YukunZhou/RETFound_mae_natureOCT` checkpoint, which
+carries the complete MAE state — 398 tensors including 103 decoder tensors,
+mask_token, optimiser and scaler — so there was no randomly-initialised decoder
+to warm up. Hyperparameters came from the checkpoint's own `args`
+(mask_ratio 0.85, norm_pix_loss, blr 1.5e-4), not from guesswork.
+
+**The motivating observation:** those args record the pretraining corpus as
+`oct/topcon_median_slice/`. RETFound's OCT stage was trained on **Topcon**
+scans; OLIVES is **Spectralis**. A named, concrete device domain gap.
+
+## The adaptation worked. It did not help.
+
+```
+MAE reconstruction loss   0.3832 -> 0.3422   (-10.7%, converged by epoch ~48)
+```
+
+| fold | v1 | MAE-continued | delta |
+|---:|---:|---:|---:|
+| 0 | 0.9102 | 0.9195 | +0.0093 |
+| 1 | 0.9145 | 0.9220 | +0.0075 |
+| 2 | 0.8283 | 0.8208 | -0.0075 |
+| 3 | 0.8969 | 0.8812 | -0.0157 |
+| 4 | 0.9079 | 0.9091 | +0.0012 |
+| **mean** | **0.8916** | **0.8905** | **-0.0010** |
+| sd | 0.0360 | 0.0422 | worse |
+
+Three folds up, two down, mean unchanged, variance higher. The encoder
+demonstrably learned Spectralis pixel statistics — a 10.7% reconstruction
+improvement is not noise — and that learning **did not transfer to the task**.
+The device gap was real at the pixel level and irrelevant at the biomarker
+level.
+
+### A process note worth keeping
+
+Folds 0 and 1 were reported mid-run as +0.017, which read as a clear win. They
+happened to be the two folds that improved. Fold 2 had already been identified
+as the one that decides these comparisons, and the interim result was reported
+anyway. **On five folds with sd ~0.04, two folds is not a result.**
+
+## Both compute-side hypotheses are now closed
+
+| Hypothesis | Test | Result |
+|---|---|---|
+| More capacity helps | ViT-B / ViT-L / ViT-H, 7.4x range | +0.0059 — inert |
+| Better pretraining helps | 50 epochs MAE on 153,045 in-domain scans | -0.0010 — inert |
+
+The operator's original explanation is the one left standing: **87 patients is
+the ceiling.** Not the encoder, not the pretraining domain, not the parameter
+count.
+
+Total cost of closing both questions: ~$3.10.
+
+## Decision
+
+v1 remains the production model. No relabelling. Further GPU spend on this
+dataset is not where the gains are — the next real improvement requires more
+annotated patients, which is a data-collection problem, not a compute one.
