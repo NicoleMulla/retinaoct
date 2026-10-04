@@ -1,0 +1,7 @@
+config,params,best_mauroc_mean,best_mauroc_sd
+"v1 baseline (ViT-L, RETFound, 30ep)",303.3M,0.8916,0.036
+"MAE-continued (ViT-L, OLIVES MAE)",303.3M,0.8905,0.0422
+ViT-L ImageNet,303.3M,0.8806,0.0326
+ViT-H ImageNet,630.8M,0.8775,0.0353
+ViT-B ImageNet,85.8M,0.8716,0.0341
+ViT-L RETFound + 3 slices,303.3M,0.8508,0.0386

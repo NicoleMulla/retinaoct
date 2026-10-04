@@ -19,6 +19,8 @@ running record of how it was all provisioned.
 | B2 bucket + credentials | ✅ | `retinaoct` private, `us-east-005`, round-trip verified |
 | Cloudflare DNS token | ✅ | `retinaoct-deploy`, all permissions verified |
 | Website | ✅ | searchable OLIVES atlas — see [`docs/atlas.md`](docs/atlas.md) |
+| Biomarker model | ✅ | mAUROC 0.8916 — see [`docs/experiments.md`](docs/experiments.md) |
+| Corpus labelled | ✅ | 153,045 scans: 9,408 expert, 143,607 model-inferred |
 | Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
 | Datasets staged | ✅ | 250,603 objects, 67.91 GB — see [`docs/datasets.md`](docs/datasets.md) |
 | B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
@@ -72,7 +74,11 @@ reversible at low cost if requirements change.
 │   ├── runbook.md     day-to-day operational commands
 │   ├── atlas.md       the search site: stack, endpoints, decisions
 │   ├── datasets.md    dataset sources, verification, staging
-│   └── biomarkers.md  biomarker extraction plan and label inventory
+│   ├── biomarkers.md  biomarker extraction plan and label inventory
+│   ├── experiments.md every model tried, all comparison tables, full results
+│   ├── scaling.md     the scaling plan and its running log
+│   ├── paper-abstract.md  draft abstract and notes for publication
+│   └── results/       per-fold metrics, curves and figures behind every number
 ├── scripts/           data staging scripts (provenance)
 └── .gitignore         secrets and build artifacts
 ```

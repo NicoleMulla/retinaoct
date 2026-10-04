@@ -1,0 +1,103 @@
+{
+  "fold": 1,
+  "n_images": 1862,
+  "n_patients": 17,
+  "per_biomarker": [
+    {
+      "biomarker": "fluid_srf",
+      "auroc": 0.9964,
+      "ap": 0.9456,
+      "n_pos": 60,
+      "prevalence": 0.0322,
+      "threshold": 0.550000011920929
+    },
+    {
+      "biomarker": "drt_me",
+      "auroc": 0.9802,
+      "ap": 0.9658,
+      "n_pos": 579,
+      "prevalence": 0.311,
+      "threshold": 0.8650000095367432
+    },
+    {
+      "biomarker": "shrm",
+      "auroc": 0.9737,
+      "ap": 0.1508,
+      "n_pos": 13,
+      "prevalence": 0.007,
+      "threshold": 0.21199999749660492
+    },
+    {
+      "biomarker": "atrophy_thinning",
+      "auroc": 0.9682,
+      "ap": 0.3856,
+      "n_pos": 12,
+      "prevalence": 0.0064,
+      "threshold": 0.9990000128746033
+    },
+    {
+      "biomarker": "fluid_irf",
+      "auroc": 0.9642,
+      "ap": 0.9649,
+      "n_pos": 799,
+      "prevalence": 0.4291,
+      "threshold": 0.6890000104904175
+    },
+    {
+      "biomarker": "ez_disruption",
+      "auroc": 0.9522,
+      "ap": 0.7881,
+      "n_pos": 130,
+      "prevalence": 0.0698,
+      "threshold": 0.11500000208616257
+    },
+    {
+      "biomarker": "vitreous_full",
+      "auroc": 0.9116,
+      "ap": 0.8906,
+      "n_pos": 1019,
+      "prevalence": 0.5473,
+      "threshold": 0.34599998593330383
+    },
+    {
+      "biomarker": "ir_hemorrhages",
+      "auroc": 0.9075,
+      "ap": 0.5369,
+      "n_pos": 115,
+      "prevalence": 0.0618,
+      "threshold": 0.382999986410141
+    },
+    {
+      "biomarker": "ir_hrf",
+      "auroc": 0.8954,
+      "ap": 0.951,
+      "n_pos": 1231,
+      "prevalence": 0.6611,
+      "threshold": 0.43299999833106995
+    },
+    {
+      "biomarker": "vitreous_debris",
+      "auroc": 0.848,
+      "ap": 0.7999,
+      "n_pos": 679,
+      "prevalence": 0.3647,
+      "threshold": 0.2240000069141388
+    },
+    {
+      "biomarker": "vitreous_partial",
+      "auroc": 0.8468,
+      "ap": 0.7041,
+      "n_pos": 556,
+      "prevalence": 0.2986,
+      "threshold": 0.42399999499320984
+    },
+    {
+      "biomarker": "preretinal_tissue",
+      "auroc": 0.7303,
+      "ap": 0.2049,
+      "n_pos": 120,
+      "prevalence": 0.0644,
+      "threshold": 0.028999999165534973
+    }
+  ]
+}

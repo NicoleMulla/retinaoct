@@ -1,0 +1,52 @@
+[
+  {
+    "fold": 0,
+    "n_train": 7546,
+    "n_val": 1862,
+    "train_patients": 69,
+    "val_patients": 18,
+    "patient_overlap": 0,
+    "mean_auroc": 0.9006,
+    "n_usable": 12
+  },
+  {
+    "fold": 1,
+    "n_train": 7546,
+    "n_val": 1862,
+    "train_patients": 70,
+    "val_patients": 17,
+    "patient_overlap": 0,
+    "mean_auroc": 0.9047,
+    "n_usable": 12
+  },
+  {
+    "fold": 2,
+    "n_train": 7546,
+    "n_val": 1862,
+    "train_patients": 70,
+    "val_patients": 17,
+    "patient_overlap": 0,
+    "mean_auroc": 0.8271,
+    "n_usable": 12
+  },
+  {
+    "fold": 3,
+    "n_train": 7546,
+    "n_val": 1862,
+    "train_patients": 70,
+    "val_patients": 17,
+    "patient_overlap": 0,
+    "mean_auroc": 0.8843,
+    "n_usable": 12
+  },
+  {
+    "fold": 4,
+    "n_train": 7448,
+    "n_val": 1960,
+    "train_patients": 69,
+    "val_patients": 18,
+    "patient_overlap": 0,
+    "mean_auroc": 0.891,
+    "n_usable": 12
+  }
+]

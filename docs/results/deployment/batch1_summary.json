@@ -1,0 +1,69 @@
+{
+  "n_images": 68875,
+  "n_rows": 826500,
+  "gate_counts": {
+    "ok": 67797,
+    "out_of_domain": 1078,
+    "rejected": 0
+  },
+  "model": "model.pt",
+  "usable": [
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    false
+  ],
+  "biomarkers": [
+    "atrophy_thinning",
+    "dril",
+    "drt_me",
+    "ez_disruption",
+    "fluid_irf",
+    "fluid_srf",
+    "ir_hemorrhages",
+    "ir_hrf",
+    "ped_serous",
+    "preretinal_tissue",
+    "rpe_disruption",
+    "shrm",
+    "vitreous_debris",
+    "vitreous_full",
+    "vitreous_partial",
+    "vmt"
+  ],
+  "thresholds": {
+    "atrophy_thinning": 0.9990000128746033,
+    "dril": 0.5,
+    "drt_me": 0.8650000095367432,
+    "ez_disruption": 0.11500000208616257,
+    "fluid_irf": 0.6890000104904175,
+    "fluid_srf": 0.550000011920929,
+    "ir_hemorrhages": 0.382999986410141,
+    "ir_hrf": 0.43299999833106995,
+    "ped_serous": 0.5,
+    "preretinal_tissue": 0.028999999165534973,
+    "rpe_disruption": 0.0010000000474974513,
+    "shrm": 0.21199999749660492,
+    "vitreous_debris": 0.2240000069141388,
+    "vitreous_full": 0.34599998593330383,
+    "vitreous_partial": 0.42399999499320984,
+    "vmt": 0.0
+  },
+  "gate": {
+    "strict": 58.07192752001419,
+    "loose": 96.55950492673736,
+    "in_domain_median": 45.004151194646305
+  }
+}

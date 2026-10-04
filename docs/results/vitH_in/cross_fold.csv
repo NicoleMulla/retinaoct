@@ -1,0 +1,13 @@
+biomarker,auroc_mean,auroc_sd,ap_mean,n_folds
+drt_me,0.9756,0.0119,0.95,5
+fluid_irf,0.952,0.0138,0.9524,5
+fluid_srf,0.9464,0.0419,0.6524,5
+ez_disruption,0.8892,0.0313,0.5232,5
+vitreous_full,0.8814,0.0226,0.8644,5
+ir_hrf,0.8668,0.0236,0.9376,5
+vitreous_partial,0.8578,0.0268,0.7534,5
+ir_hemorrhages,0.8422,0.0684,0.2598,5
+vitreous_debris,0.8262,0.0532,0.7254,5
+shrm,0.8148,0.1194,0.1128,5
+atrophy_thinning,0.7936,0.1415,0.2204,5
+preretinal_tissue,0.7676,0.1173,0.3846,5
