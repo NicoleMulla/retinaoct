@@ -158,7 +158,8 @@ never firing.
 
 AUROC's baseline is 0.5 regardless of prevalence. Average precision's baseline
 **is** the prevalence. On rare biomarkers the two diverge sharply, and AUROC alone
-is misleading — quantified in §5.3.
+is misleading — quantified in §5.3. Accuracy is not reported at all; §5.6 shows it
+falling below a constant-negative baseline on two biomarkers.
 
 ---
 
@@ -390,6 +391,76 @@ Neither is wrong, and both sit far inside the ±0.04 fold noise. The defensible
 statement is **no detectable difference**, not "slightly better" or "slightly
 worse." Quoting whichever is convenient would be misleading.
 
+### 5.5 Threshold-level performance and confusion matrices
+
+AUROC and average precision are threshold-free. What a deployment actually does
+depends on the operating point, so the confusion matrix at each tuned threshold
+is reported here. Fold 1 held-out, 1,862 images, 17 unseen patients.
+[`results/evaluation/v1_confusion_fold1.csv`](results/evaluation/v1_confusion_fold1.csv)
+
+| Biomarker | TP | FP | FN | TN | Sens | Spec | PPV | NPV | F1 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| fluid_irf | 717 | 60 | 82 | 1003 | 0.897 | 0.944 | **0.923** | 0.924 | 0.910 |
+| drt_me | 530 | 50 | 49 | 1233 | 0.915 | 0.961 | **0.914** | 0.962 | 0.915 |
+| ir_hrf | 1063 | 181 | 168 | 450 | 0.864 | 0.713 | **0.855** | 0.728 | 0.859 |
+| fluid_srf | 58 | 10 | 2 | 1792 | 0.967 | 0.995 | **0.853** | 0.999 | 0.906 |
+| vitreous_full | 971 | 202 | 48 | 641 | 0.953 | 0.760 | **0.828** | 0.930 | 0.886 |
+| ez_disruption | 101 | 38 | 29 | 1694 | 0.777 | 0.978 | **0.727** | 0.983 | 0.751 |
+| vitreous_debris | 492 | 218 | 187 | 965 | 0.725 | 0.816 | **0.693** | 0.838 | 0.708 |
+| vitreous_partial | 417 | 216 | 139 | 1090 | 0.750 | 0.835 | **0.659** | 0.887 | 0.701 |
+| atrophy_thinning | 4 | 3 | 8 | 1847 | 0.333 | 0.998 | **0.571** | 0.996 | 0.421 |
+| ir_hemorrhages | 68 | 53 | 47 | 1694 | 0.591 | 0.970 | **0.562** | 0.973 | 0.576 |
+| preretinal_tissue | 53 | 146 | 67 | 1596 | 0.442 | 0.916 | **0.266** | 0.960 | 0.332 |
+| shrm | 7 | 30 | 6 | 1819 | 0.538 | 0.984 | **0.189** | 0.997 | 0.280 |
+
+Ordered by **positive predictive value**, which is what a reader of a model
+output experiences: given a positive call, how often is it correct.
+
+The ordering differs sharply from the AUROC ordering in §5.3. `shrm` ranks third
+by AUROC (0.974) and last by PPV (0.189) — seven correct positive calls against
+thirty incorrect ones. `atrophy_thinning` reaches PPV 0.571 but recovers only
+four of twelve true cases (sensitivity 0.333). Neither is usable; neither looks
+unusable on AUROC alone.
+
+The five biomarkers identified as reliable in §5.2 hold up here:
+`fluid_srf` (PPV 0.853), `drt_me` (0.914), `fluid_irf` (0.923), `ir_hrf` (0.855)
+and `vitreous_full` (0.828) all combine high PPV with sensitivity above 0.86.
+
+Raw per-image probabilities are versioned at
+[`results/evaluation/fold1_predictions.npz`](results/evaluation/fold1_predictions.npz),
+so any threshold-dependent metric can be recomputed without re-running the model.
+
+### 5.6 Accuracy is not a usable metric at these prevalences
+
+Accuracy is reported here solely to show why it is excluded everywhere else.
+The comparison is against a model that always predicts absent.
+
+| Biomarker | Prevalence | Accuracy | Always-negative | Gain | Balanced acc |
+|---|---:|---:|---:|---:|---:|
+| ir_hrf | 66.1% | 0.813 | 0.661 | +0.151 | 0.788 |
+| vitreous_full | 54.7% | 0.866 | 0.547 | +0.319 | 0.857 |
+| fluid_irf | 42.9% | 0.924 | 0.571 | +0.353 | 0.920 |
+| vitreous_debris | 36.5% | 0.782 | 0.635 | +0.147 | 0.770 |
+| drt_me | 31.1% | 0.947 | 0.689 | +0.258 | 0.938 |
+| vitreous_partial | 29.9% | 0.809 | 0.701 | +0.108 | 0.792 |
+| ez_disruption | 7.0% | 0.964 | 0.930 | +0.034 | 0.877 |
+| preretinal_tissue | 6.4% | 0.886 | 0.936 | -0.050 | 0.679 |
+| ir_hemorrhages | 6.2% | 0.946 | 0.938 | +0.008 | 0.780 |
+| fluid_srf | 3.2% | 0.994 | 0.968 | +0.026 | 0.981 |
+| shrm | 0.7% | 0.981 | 0.993 | -0.012 | 0.761 |
+| atrophy_thinning | 0.6% | 0.994 | 0.994 | +0.001 | 0.666 |
+
+**Two biomarkers score worse than a constant negative prediction.**
+`preretinal_tissue` reaches 0.886 against a 0.936 baseline, and `shrm` 0.981
+against 0.993 — while both carry genuine signal (balanced accuracy 0.679 and
+0.761, AUROC 0.730 and 0.974). `atrophy_thinning` ties its baseline to three
+decimal places at 0.994.
+
+At single-digit prevalence, accuracy measures the class distribution rather than
+the model. Balanced accuracy, PPV and average precision are the columns that
+carry information; any accuracy figure quoted for the rare biomarkers in this
+dataset should be treated as uninformative.
+
 ---
 
 ## 6. Deployment
@@ -466,7 +537,9 @@ absent — for the four untrainable biomarkers and for rejected scans.
 3. **Further in-domain pretraining adds nothing detectable**, even when it
    provably improves the representation (−10.7% reconstruction loss).
 4. **Naive volumetric context harms** as implemented.
-5. **AUROC alone is unsafe on rare biomarkers.** Gaps to AP reach 0.823.
+5. **AUROC alone is unsafe on rare biomarkers.** Gaps to AP reach 0.823, the
+   AUROC and PPV orderings disagree substantially (§5.5), and accuracy falls
+   below a constant-negative baseline on two biomarkers (§5.6).
 6. **The ceiling is annotation, not compute.** 87 patients.
 
 ### Not supported
@@ -518,9 +591,10 @@ That ceiling is annotation-bound.
 | Continue MAE pretraining | `scripts/train/mae_continue.py` |
 | Export serving artefacts and OOD reference | `scripts/train/export_reference.py` |
 | Parse logs into metrics | `scripts/train/collect_curves.py` |
-| ROC / PR curves | `scripts/train/roc_curves.py` |
+| ROC / PR curves, confusion matrices | `scripts/train/roc_curves.py` |
 | Label the unannotated corpus | `scripts/train/infer_unlabeled.py` |
 | Publish to HuggingFace | `scripts/train/push_to_hf.py` |
+| Verify this document against `results/` | `scripts/verify_docs.py` |
 
 The production configuration is tagged **`baseline-v1`**.
 
@@ -539,6 +613,11 @@ The production configuration is tagged **`baseline-v1`**.
 ---
 
 ## 10. References to supporting data
+
+Every headline figure in this document is checked against
+[`results/`](results/) by `scripts/verify_docs.py`, which recomputes each claim
+from the versioned data and fails on any mismatch. Run it after editing either
+the prose or the data.
 
 Everything above is reproducible from [`results/`](results/). Bulk artefacts:
 weights and figures on HuggingFace, 1.72M predictions in Cloudflare D1, source
