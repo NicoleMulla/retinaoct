@@ -1,5 +1,5 @@
 /**
- * Upload-and-analyse proxy: browser -> here -> our model on HuggingFace.
+ * Upload-and-analyze proxy: browser -> here -> our model on HuggingFace.
  *
  * The browser never sees the HF token or the endpoint URL. The upload is held
  * in memory for the length of one request and written nowhere — not to B2, not

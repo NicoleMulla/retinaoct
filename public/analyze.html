@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Analyse a scan — Retina OCT</title>
+<title>Analyze a scan — Retina OCT</title>
 <meta name="description" content="Upload an OCT B-scan and see which retinal biomarkers our RETFound/OLIVES model predicts. Research use only.">
-<link rel="stylesheet" href="/styles.css?v=1ae2c378">
+<link rel="stylesheet" href="/styles.css?v=9e154e24">
 <link rel="icon" href="/favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -21,7 +21,7 @@
     </a>
     <nav>
       <a href="/">Explore</a>
-      <a href="/analyse" class="on">Analyse</a>
+      <a href="/analyze" class="on">Analyze</a>
       <a href="/about">About</a>
       <a href="/data-sources">Data sources</a>
     </nav>
@@ -47,14 +47,14 @@
 <nav class="sheet menu-sheet" id="menu-sheet" aria-label="Site menu" hidden>
   <div class="grip" aria-hidden="true"></div>
   <a href="/">Explore</a>
-  <a href="/analyse">Analyse</a>
+  <a href="/analyze">Analyze</a>
   <a href="/about">About</a>
   <a href="/data-sources">Data sources</a>
   <a href="https://github.com/NicoleMulla/retinaoct" target="_blank" rel="noopener">GitHub repository</a>
 </nav>
 
 <main class="wrap page">
-  <h1>Analyse a scan</h1>
+  <h1>Analyze a scan</h1>
   <p class="sub">Upload an OCT B-scan and our model predicts which of sixteen
   retinal biomarkers are present. The model is a RETFound ViT-L/16 encoder
   fine-tuned on 9,408 expert-annotated OLIVES B-scans.</p>
@@ -69,7 +69,7 @@
   <div class="an-grid">
     <section>
       <div class="drop" id="drop" tabindex="0" role="button"
-           aria-label="Choose an OCT image to analyse">
+           aria-label="Choose an OCT image to analyze">
         <input type="file" id="file" accept="image/png,image/jpeg,image/tiff,image/bmp,image/webp" hidden>
         <div class="drop-inner" id="drop-inner">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -84,11 +84,11 @@
       </div>
 
       <div class="an-actions">
-        <button class="btn" id="run" disabled>Analyse scan</button>
+        <button class="btn" id="run" disabled>Analyze scan</button>
         <button class="btn ghost" id="reset" hidden>Choose another</button>
       </div>
       <p class="privacy" id="filemeta"></p>
-      <p class="privacy">Your image is sent to the model, analysed, and
+      <p class="privacy">Your image is sent to the model, analyzed, and
       discarded. It is never stored, logged or added to the atlas.</p>
     </section>
 
@@ -129,7 +129,7 @@ function choose(f){
   $("#run").disabled = false;
   $("#reset").hidden = false;
   $("#filemeta").textContent = `${f.name} · ${kb(f.size)}`;
-  $("#results").innerHTML = `<div class="empty">Ready. Press <b>Analyse scan</b>.</div>`;
+  $("#results").innerHTML = `<div class="empty">Ready. Press <b>Analyze scan</b>.</div>`;
 }
 
 drop.onclick = () => { if(!busy) input.click(); };
@@ -149,13 +149,13 @@ $("#run").onclick = async () => {
   if(!file || busy) return;
   busy = true;
   $("#run").disabled = true;
-  $("#run").textContent = "Analysing…";
+  $("#run").textContent = "Analyzing…";
   $("#results").innerHTML = `<div class="loading"><span class="spin" aria-hidden="true"></span>
     <b>Running the model</b>
     <span>If the endpoint has scaled to zero this can take up to a minute.</span></div>`;
 
   try{
-    const r = await fetch("/api/analyse", {
+    const r = await fetch("/api/analyze", {
       method: "POST",
       headers: { "content-type": file.type || "application/octet-stream" },
       body: file,
@@ -168,7 +168,7 @@ $("#run").onclick = async () => {
   }finally{
     busy = false;
     $("#run").disabled = false;
-    $("#run").textContent = "Analyse scan";
+    $("#run").textContent = "Analyze scan";
   }
 };
 
@@ -176,7 +176,7 @@ function showError(msg, code){
   const hint = code === "cold_start"
     ? `<p class="hint">The model scales to zero when idle to keep it cheap to run.</p>` : "";
   $("#results").innerHTML =
-    `<div class="verdict bad"><b>Could not analyse this image</b><span>${esc(msg)}</span></div>${hint}`;
+    `<div class="verdict bad"><b>Could not analyze this image</b><span>${esc(msg)}</span></div>${hint}`;
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c =>

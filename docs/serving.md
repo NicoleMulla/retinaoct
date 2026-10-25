@@ -1,6 +1,6 @@
 # Serving the biomarker model
 
-How `retinaoct.com/analyse` reaches the model, what it costs, and the one step
+How `retinaoct.com/analyze` reaches the model, what it costs, and the one step
 that is not done.
 
 Investigated 2026-10-24.
@@ -11,7 +11,7 @@ Investigated 2026-10-24.
 
 ```
 browser ──POST image bytes──▶ Cloudflare Pages Function ──POST {"inputs": b64}──▶ model endpoint
-                              functions/api/analyse.js                            handler.py
+                              functions/api/analyze.js                            handler.py
 ```
 
 The browser never sees the token or the endpoint URL. The upload is held in
@@ -134,7 +134,7 @@ npx wrangler pages secret put HF_ENDPOINT_URL --project-name retinaoct
 npx wrangler pages secret put HF_TOKEN --project-name retinaoct
 ```
 
-Until both exist, `/analyse` returns a clean
+Until both exist, `/analyze` returns a clean
 `"Analysis is not configured on this deployment yet."` and the rest of the site
 is unaffected. A sleeping Space answers with HTML rather than JSON, which the
 proxy already treats as a cold start rather than a broken model.

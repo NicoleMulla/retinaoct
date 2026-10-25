@@ -413,17 +413,19 @@ footer{border-top:1px solid var(--line);padding-block:22px 34px;color:var(--fain
 .prov.reject b{color:#b9c0d0}
 
 /* ---------------- download affordance on grid cards ---------------- */
-/* Sits inside .thumb, opposite the provenance badge. Hidden until the card is
-   hovered or the button itself is focused, so the grid stays calm. */
+/* Sits inside .thumb, opposite the provenance badge. Always visible: an earlier
+   revision revealed it only on hover, which made the feature undiscoverable —
+   people cannot hover something they do not know is there. It is muted at rest
+   and solid on hover instead, which keeps the grid calm without hiding it. */
 .dl{position:absolute;top:7px;right:7px;display:grid;place-items:center;
   width:28px;height:28px;border-radius:7px;border:0;cursor:pointer;
-  background:rgba(10,14,22,.78);color:#fff;backdrop-filter:blur(4px);
-  opacity:0;transition:opacity .12s,background .12s}
-.card:hover .dl,.dl:focus-visible{opacity:1}
-.dl:hover{background:rgba(79,109,245,.95)}
-@media(hover:none){.dl{opacity:1}}   /* no hover on touch: always show */
+  background:rgba(10,14,22,.62);color:#fff;backdrop-filter:blur(4px);
+  opacity:.9;transition:opacity .12s,background .12s}
+.card:hover .dl{opacity:1;background:rgba(10,14,22,.85)}
+.dl:hover,.dl:focus-visible{opacity:1;background:rgba(79,109,245,.96)}
+.dl:focus-visible{outline:2px solid #fff;outline-offset:1px}
 
-/* ---------------- analyse page ---------------- */
+/* ---------------- analyze page ---------------- */
 .an-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
   gap:22px;align-items:start;margin-top:26px}
 
