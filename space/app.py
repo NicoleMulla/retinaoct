@@ -48,6 +48,15 @@ from handler import EndpointHandler  # noqa: E402  (needs the path above)
 
 HANDLER = EndpointHandler(local)
 
+# Recalibrated at the serving layer, leaving the trained artefact untouched.
+# Measured over 117 images: real OCT from three devices (OLIVES, Kermany, OCTDL)
+# tops out at 85.2, while a flat grey fill scores 94.8 and a colour gradient
+# 90.8 — all waved through by the shipped loose bound of 96.6, each with a full
+# set of sixteen predictions. 88 rejects those and rejects nothing real in the
+# sample. Set GATE_LOOSE to restore the original behaviour.
+GATE_LOOSE = float(os.environ.get("GATE_LOOSE", "88"))
+HANDLER.gate["loose"] = GATE_LOOSE
+
 # ZeroGPU wants models placed on cuda at module import, not lazily inside the
 # decorated function: a CUDA emulation layer makes this legal outside @spaces.GPU
 # and the real transfer is optimised to happen at startup. Off ZeroGPU (local
@@ -64,6 +73,24 @@ else:
     print("[startup] no ZeroGPU detected — running on cpu")
 
 
+# An OCT B-scan is a greyscale cross-section. Measured over 90 real scans from
+# three devices, per-pixel colour spread never exceeded 0.65/255; a colour
+# photograph starts around 52. Anything above this is not an OCT image, and
+# saying so beats running the model and printing sixteen confident numbers for
+# a photograph of a cat. Greyscale non-OCT input is left to the distance gate.
+COLOUR_LIMIT = float(os.environ.get("COLOUR_LIMIT", "12"))
+
+
+def _colourfulness(im) -> float:
+    """Mean per-pixel (max(RGB) - min(RGB)), 0-255. Greyscale gives ~0."""
+    import numpy as np
+    from PIL import Image
+    small = im.convert("RGB")
+    small.thumbnail((256, 256), Image.BILINEAR)
+    a = np.asarray(small, dtype=np.int16)
+    return float((a.max(2) - a.min(2)).mean())
+
+
 def _is_quota_error(exc) -> bool:
     """ZeroGPU refuses a job when the daily allowance is spent.
 
@@ -75,9 +102,34 @@ def _is_quota_error(exc) -> bool:
     return "quota" in msg and ("exceed" in msg or "left" in msg or "try again" in msg)
 
 
+def _reject(reason: str, distance=None) -> dict:
+    """Shape a refusal exactly like the handler's own rejected verdict."""
+    return {"verdict": "rejected", "distance": distance, "reason": reason,
+            "predictions": None, "notes": [], "license": HANDLER.license,
+            "disclaimer": "Research use only. Not a medical device and not "
+                          "for diagnostic use."}
+
+
 @spaces.GPU(duration=GPU_DURATION)
 def _infer(blob: str) -> dict:
     return HANDLER({"inputs": blob})
+
+
+def analyse(blob: str) -> dict:
+    """Colour check first — it is free, and it catches the uploads that would
+    otherwise make the model look credulous."""
+    import base64 as _b64, io as _io
+    from PIL import Image as _Image
+    try:
+        raw = _b64.b64decode(blob) if isinstance(blob, str) else blob
+        im = _Image.open(_io.BytesIO(raw))
+        colour = _colourfulness(im)
+    except Exception:
+        colour = 0.0                       # let the handler report the decode error
+    if colour > COLOUR_LIMIT:
+        return _reject("This is a colour image. OCT B-scans are greyscale "
+                       "cross-sections, so this does not appear to be one.")
+    return _infer(blob)
 
 
 def ui(image):
@@ -88,7 +140,7 @@ def ui(image):
     buf = io.BytesIO()
     image.save(buf, format="PNG")
     try:
-        return _infer(base64.b64encode(buf.getvalue()).decode())
+        return analyse(base64.b64encode(buf.getvalue()).decode())
     except Exception as exc:
         if _is_quota_error(exc):
             return {"error": "Today's GPU quota is exhausted. Try again tomorrow.",
@@ -140,7 +192,7 @@ async def analyze(request: Request):
         blob = base64.b64encode(body).decode()
 
     try:
-        out = _infer(blob)
+        out = analyse(blob)
     except Exception as exc:
         if _is_quota_error(exc):
             # 429 so the website can tell "come back tomorrow" apart from a fault.

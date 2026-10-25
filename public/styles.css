@@ -566,3 +566,15 @@ footer{border-top:1px solid var(--line);padding-block:22px 34px;color:var(--fain
   .feat-txt b{font-size:13.5px}
   .feat-txt span{font-size:12px}
 }
+
+/* Shown when the gate declines an image. Same calm treatment as the quota
+   panel: nothing failed, and an alarm-coloured block for what is usually just
+   the wrong file makes the tool look broken rather than careful. */
+.notice{display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:8px;padding:34px 22px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--surface)}
+.notice-art{width:92px;height:92px;margin-bottom:2px}
+.notice b{font-size:15px;font-weight:640;color:var(--ink);max-width:30ch;line-height:1.35}
+.notice span{font-size:12.5px;color:var(--muted);max-width:44ch;line-height:1.55}
+.notice .notice-sub{color:var(--faint);font-size:11.5px;max-width:42ch;
+  padding-top:7px;margin-top:3px;border-top:1px solid var(--line-2)}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Analyze a scan — Retina OCT</title>
 <meta name="description" content="Upload an OCT B-scan and see which retinal biomarkers our RETFound/OLIVES model predicts. Research use only.">
-<link rel="stylesheet" href="/styles.css?v=fca8bcfb">
+<link rel="stylesheet" href="/styles.css?v=6dbf4551">
 <link rel="icon" href="/favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -205,28 +205,34 @@ function showError(msg, code){
 const esc = s => String(s).replace(/[&<>"']/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-const VERDICT = {
-  ok: { cls:"good", title:"In distribution",
-        sub:"This scan resembles the data the model was validated on." },
-  out_of_domain: { cls:"warn", title:"Outside the validated distribution",
-        sub:"OCT-like, but unlike the scans the model was validated on. Predictions are unvalidated." },
-  rejected: { cls:"bad", title:"Not assessed",
-        sub:"This image sits too far outside the training distribution for the model to judge." },
-};
+/* Original mark: a picture frame struck through. */
+const DECLINE_ART = `<svg class="notice-art" viewBox="0 0 120 120" role="img"
+  aria-label="A picture frame with a line struck through it">
+  <circle cx="60" cy="60" r="54" fill="var(--line-2)"/>
+  <rect x="34" y="40" width="52" height="40" rx="6" fill="none"
+        stroke="var(--muted)" stroke-width="4"/>
+  <circle cx="47" cy="53" r="4.2" fill="var(--muted)"/>
+  <path d="M37 73l12-12 8 8 10-10 13 13" fill="none" stroke="var(--muted)"
+        stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M35 86 85 36" stroke="var(--body)" stroke-width="5" stroke-linecap="round"/>
+</svg>`;
 
 function render(d){
-  const v = VERDICT[d.verdict] || VERDICT.rejected;
   const out = [];
+  const hasPreds = Array.isArray(d.predictions) && d.predictions.length;
 
-  out.push(`<div class="verdict ${v.cls}"><b>${v.title}</b><span>${esc(d.reason || v.sub)}</span></div>`);
+  /* When the gate declines, say so and stop. Printing sixteen probabilities
+     under a caveat is exactly what made a photograph read like a diagnosis. */
+  if(d.verdict === "rejected" || !hasPreds){
+    $("#results").innerHTML = `<div class="notice">${DECLINE_ART}
+      <b>This doesn&rsquo;t look like an OCT B-scan</b>
+      <span>${esc(d.reason || "It sits too far outside the data this model was trained on for a prediction to mean anything.")}</span>
+      <span class="notice-sub">No biomarkers are shown. The model declined to judge this
+        image &mdash; that is not a finding about a retina.</span></div>`;
+    return;
+  }
 
-  if(d.verdict === "rejected"){
-    out.push(`<p class="hint"><b>No predictions are shown deliberately.</b> An empty
-      result here means the model declined to judge — not that the retina is normal.</p>`);
-  }else if(Array.isArray(d.predictions) && d.predictions.length){
-    if(d.verdict === "out_of_domain" && d.warning)
-      out.push(`<p class="hint">${esc(d.warning)}</p>`);
-
+  {
     const present = d.predictions.filter(p => p.present);
     out.push(`<div class="sect-h">Predicted biomarkers
       <span class="n">${present.length} of ${d.predictions.length} above threshold</span></div>`);
@@ -264,10 +270,18 @@ function render(d){
 
   if(d.distance != null){
     const med = d.in_domain_median;
+    /* Replaces the amber banner that used to sit at the top of every result.
+       Nearly every scan from a device other than a Spectralis lands here, so a
+       warning styled as a warning fired almost always and read as a fault.
+       Same fact, stated plainly, at the bottom with the other provenance. */
     out.push(`<div class="sect-h">Distribution distance</div>
       <p class="hint">This scan sits <b>${d.distance}</b> from the centre of the
       training distribution${med != null ? `, where a typical validated scan sits around <b>${med}</b>` : ""}.
-      The gate uses this to decide whether predictions are trustworthy.</p>`);
+      ${d.verdict === "out_of_domain"
+        ? `It is recognisably an OCT B-scan but further out than the scans the model
+           was validated against &mdash; which is usual for devices other than the
+           Heidelberg Spectralis. Read the numbers below as indicative.`
+        : `The gate uses this to decide whether predictions are trustworthy.`}</p>`);
   }
 
   out.push(`<div class="disclaim">${esc(d.disclaimer ||

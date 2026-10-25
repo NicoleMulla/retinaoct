@@ -144,6 +144,60 @@ npx wrangler pages deploy public --project-name retinaoct --branch main
 
 ---
 
+## What the gate actually refuses
+
+Surveyed 117 images against the shipped thresholds (strict 58.1, loose 96.6):
+
+| category | n | min | median | max | rejected |
+|---|--:|--:|--:|--:|--:|
+| OLIVES B-scan (in-domain) | 25 | 24.3 | 38.9 | 75.4 | 0 |
+| OLIVES fundus photo | 15 | 68.2 | 73.1 | 78.0 | 0 |
+| Kermany OCT (other device) | 25 | 55.6 | 71.6 | 85.2 | 0 |
+| OCTDL OCT (other device) | 25 | 43.3 | 74.6 | 84.1 | 0 |
+| synthetic colour gradient | 1 | 90.8 | — | — | 0 |
+| synthetic flat grey | 1 | 94.8 | — | — | 0 |
+| synthetic colour noise | 1 | 82.6 | — | — | 0 |
+
+**Nothing was refused — not one of 117, including a flat grey rectangle.** The
+loose bound of 96.6 was never reached in practice, so a photograph returned
+sixteen confident probabilities under a caveat.
+
+Distance alone cannot fix it: real OCT reaches 85.2 while junk starts at 82.6,
+so any single cut-off that refuses the junk also refuses real scans.
+
+### Two signals instead of one
+
+**Colour.** An OCT B-scan is a greyscale cross-section. Across 90 real scans
+from three devices, mean per-pixel `max(RGB) - min(RGB)` never exceeded 0.65;
+a colour photograph starts around 52. `COLOUR_LIMIT = 12` sits in an ~80x gap
+and runs before the model, so a photograph is refused without inference. It
+does not help against greyscale non-OCT input — including OLIVES' own fundus
+images, which are greyscale here.
+
+**Distance, recalibrated.** `GATE_LOOSE = 88`, applied at the serving layer so
+the trained artefact is untouched. Above every real scan in the survey (85.2),
+below the grey synthetics (90.8, 94.8).
+
+Re-run over the same 117 images: all 90 real OCT scans still pass, all three
+synthetics are refused, zero real scans lost.
+
+### Presentation follows the verdict
+
+| verdict | shown |
+|---|---|
+| `ok` | biomarkers, no banner |
+| `out_of_domain` | biomarkers, no banner; a plain sentence beside the distance figure |
+| `rejected` | a statement and an illustration, **no biomarkers at all** |
+
+The amber banner is gone. Nearly every scan from a non-Spectralis device lands
+in `out_of_domain`, so a warning styled as a warning fired almost always and
+read as a fault rather than as context. The fact is kept; the alarm is not.
+
+Refusing outright matters more than it sounds: a list of sixteen probabilities
+under a caveat still reads as a diagnosis of whatever was uploaded.
+
+---
+
 ## Licence constraint
 
 Model weights derive from RETFound and inherit **CC BY-NC 4.0**. Serving
