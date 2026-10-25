@@ -181,6 +181,43 @@ below the grey synthetics (90.8, 94.8).
 Re-run over the same 117 images: all 90 real OCT scans still pass, all three
 synthetics are refused, zero real scans lost.
 
+### Structure, where distance cannot help
+
+Distance measures how far an image sits from the average training scan. It says
+nothing about whether the image is a cross-section at all. A black-and-white cat
+measured **72.7** — inside the band where real scans live, and *below* real
+Kermany scans at 78.6. No threshold separates those two, because the ordering
+is simply wrong.
+
+Structure does separate them. A B-scan has near-black vitreous above the retina
+and near-black tissue below the choroid, and one bright band across the frame:
+
+| | real OCT (n=120) | greyscale non-OCT (n=30) |
+|---|---|---|
+| dark-margin fraction | median 0.65-0.88 | **0.00**, max 0.12 |
+| bright-band share | median 0.41-0.66 | 0.28 |
+
+Refuse only when **both** are absent, and only for images already outside the
+in-domain band, so a normal scan is never second-guessed by a heuristic:
+
+```
+distance > 88                                        -> refuse
+distance > 58.1 AND dark < 0.05 AND band < 0.35      -> refuse
+```
+
+Swept over 120 real scans and 30 negatives: **98.3% of real scans analysed,
+96.7% of non-OCT refused.** Dark margin alone scored 96.7/96.7, so the second
+feature buys real scans back at no cost in refusals.
+
+Live confirmation: a greyscale non-OCT image at distance 69.8 is refused, while
+a real Kermany scan at 78.6 is analysed.
+
+**These are heuristics, not a classifier.** Roughly 2 in 120 real scans are
+refused (tightly cropped, no margins, weak band) and about 1 in 30 photographs
+still passes. `DARK_MIN` and `BAND_MIN` tune the balance. The robust fix is
+k-NN distance to the nearest training embedding rather than to the distribution
+centre; it needs the 9,408 training embeddings stored with the model.
+
 ### Presentation follows the verdict
 
 | verdict | shown |

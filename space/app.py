@@ -91,6 +91,35 @@ def _colourfulness(im) -> float:
     return float((a.max(2) - a.min(2)).mean())
 
 
+# Distance says how far an image sits from the average training scan; it does
+# not say whether the image is a cross-section at all. A greyscale photograph
+# can land mid-range — a black-and-white cat measured 72.7, inside the band
+# where real scans live — so lowering the bound cannot separate them.
+#
+# Structure can. A B-scan has near-black vitreous above the retina and near-black
+# tissue below the choroid, and one bright band across the frame. Over 120 real
+# scans from three devices and 30 greyscale non-OCT images, requiring BOTH to be
+# absent before refusing keeps 98.3% of real scans and refuses 96.7% of the rest.
+DARK_MIN = float(os.environ.get("DARK_MIN", "0.05"))
+BAND_MIN = float(os.environ.get("BAND_MIN", "0.35"))
+
+
+def _structure(im):
+    """(dark-margin fraction, bright-band concentration). Photographs score low on both."""
+    import numpy as np
+    from PIL import Image
+    g = im.convert("L")
+    g.thumbnail((256, 256), Image.BILINEAR)
+    a = np.asarray(g, dtype=np.float32) / 255.0
+    m = max(1, a.shape[0] // 5)
+    dark = float(((a[:m] < 0.12).mean() + (a[-m:] < 0.12).mean()) / 2)
+    rp = a.mean(1)
+    rp = rp / (rp.sum() + 1e-9)
+    k = max(1, len(rp) // 4)
+    band = float(np.sort(rp)[::-1][:k].sum())
+    return dark, band
+
+
 def _is_quota_error(exc) -> bool:
     """ZeroGPU refuses a job when the daily allowance is spent.
 
@@ -116,20 +145,38 @@ def _infer(blob: str) -> dict:
 
 
 def analyse(blob: str) -> dict:
-    """Colour check first — it is free, and it catches the uploads that would
-    otherwise make the model look credulous."""
+    """Cheap checks before and after the model, so a photograph never comes back
+    wearing sixteen probabilities."""
     import base64 as _b64, io as _io
     from PIL import Image as _Image
+    im = None
     try:
         raw = _b64.b64decode(blob) if isinstance(blob, str) else blob
         im = _Image.open(_io.BytesIO(raw))
-        colour = _colourfulness(im)
+        im.load()
     except Exception:
-        colour = 0.0                       # let the handler report the decode error
-    if colour > COLOUR_LIMIT:
+        return _infer(blob)                # let the handler report the decode error
+
+    # 1. Colour, before inference — free, and it costs no GPU quota.
+    if _colourfulness(im) > COLOUR_LIMIT:
         return _reject("This is a colour image. OCT B-scans are greyscale "
                        "cross-sections, so this does not appear to be one.")
-    return _infer(blob)
+
+    out = _infer(blob)
+
+    # 2. Structure, but only for images already outside the in-domain band. An
+    #    in-domain scan is never second-guessed by a heuristic.
+    if out.get("verdict") == "out_of_domain":
+        try:
+            dark, band = _structure(im)
+        except Exception:
+            return out
+        if dark < DARK_MIN and band < BAND_MIN:
+            return _reject(
+                "This does not have the structure of an OCT B-scan: no dark region "
+                "above or below the retina, and no bright retinal band across the "
+                "frame.", out.get("distance"))
+    return out
 
 
 def ui(image):
