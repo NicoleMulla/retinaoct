@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Analyze a scan — Retina OCT</title>
 <meta name="description" content="Upload an OCT B-scan and see which retinal biomarkers our RETFound/OLIVES model predicts. Research use only.">
-<link rel="stylesheet" href="/styles.css?v=9e154e24">
+<link rel="stylesheet" href="/styles.css?v=796c7c07">
 <link rel="icon" href="/favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -217,7 +217,7 @@ function render(d){
           <span class="pred-label">${esc(p.label || p.biomarker)}</span>
           <span class="pred-pct">${pct}%</span>
         </div>
-        <div class="bar"><i style="width:${pct}%"></i>
+        <div class="pred-bar"><i style="width:${pct}%"></i>
           <u style="left:${thr}%" title="Decision threshold ${thr}%"></u></div>
       </div>`;
     }).join("") + `</div>`);
