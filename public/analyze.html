@@ -270,18 +270,15 @@ function render(d){
 
   if(d.distance != null){
     const med = d.in_domain_median;
-    /* Replaces the amber banner that used to sit at the top of every result.
-       Nearly every scan from a device other than a Spectralis lands here, so a
-       warning styled as a warning fired almost always and read as a fault.
-       Same fact, stated plainly, at the bottom with the other provenance. */
+    /* No out-of-distribution commentary here. Anyone uploading their own scan
+       already knows it did not come from OLIVES, and nearly every non-Spectralis
+       scan lands out of domain — so the note fired almost always and said
+       something the reader already knew. The distance figure stays; it is
+       informative on its own, and the gate still refuses what it cannot judge. */
     out.push(`<div class="sect-h">Distribution distance</div>
       <p class="hint">This scan sits <b>${d.distance}</b> from the centre of the
       training distribution${med != null ? `, where a typical validated scan sits around <b>${med}</b>` : ""}.
-      ${d.verdict === "out_of_domain"
-        ? `It is recognisably an OCT B-scan but further out than the scans the model
-           was validated against &mdash; which is usual for devices other than the
-           Heidelberg Spectralis. Read the numbers below as indicative.`
-        : `The gate uses this to decide whether predictions are trustworthy.`}</p>`);
+      The gate uses this to decide whether predictions are trustworthy.</p>`);
   }
 
   out.push(`<div class="disclaim">${esc(d.disclaimer ||
