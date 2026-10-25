@@ -23,6 +23,8 @@ running record of how it was all provisioned.
 | Corpus labelled | ✅ | 153,045 scans: 9,408 expert, 143,607 model-inferred |
 | Image upload pipeline | ✅ | `doppler run -- rclone sync` working |
 | Datasets staged | ✅ | 250,603 objects, 67.91 GB — see [`docs/datasets.md`](docs/datasets.md) |
+| Individual image download | ✅ | per-image download from grid and detail panel, CC BY attribution attached |
+| Upload + analyse | ⚠️ | model live on a private HF Space; site needs 2 Pages secrets — see [`docs/serving.md`](docs/serving.md) |
 | B2 key scope | ⚠️ | master key in use — downgrade to bucket-scoped |
 
 ---

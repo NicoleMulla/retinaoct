@@ -23,6 +23,7 @@
     </a>
     <nav>
       <a href="/" class="on">Explore</a>
+      <a href="/analyse">Analyse</a>
       <a href="/about">About</a>
       <a href="/data-sources">Data sources</a>
     </nav>
@@ -47,6 +48,7 @@
 <nav class="sheet menu-sheet" id="menu-sheet" aria-label="Site menu" hidden>
   <div class="grip" aria-hidden="true"></div>
   <a href="/">Explore</a>
+  <a href="/analyse">Analyse</a>
   <a href="/about">About</a>
   <a href="/data-sources">Data sources</a>
   <a href="https://github.com/NicoleMulla/retinaoct" target="_blank" rel="noopener">GitHub repository</a>
@@ -178,6 +180,15 @@ const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[
 const $ = s => document.querySelector(s);
 const fmt = n => (n ?? 0).toLocaleString();
 const imgUrl = k => IMG_BASE && k ? IMG_BASE.replace(/\/$/,"") + "/" + k : null;
+// Downloads get a stable descriptive filename rather than the B2 object key.
+// The extension comes from the key so the bytes and the name always agree.
+const dlName = r => {
+  const ext = (String(r.full_key||"").match(/\.[A-Za-z0-9]{1,5}$/) || [".webp"])[0];
+  return `retinaoct_OCT_${String(r.id).padStart(7,"0")}${ext}`;
+};
+const dlUrl = r => r.full_key
+  ? `${imgUrl(r.full_key)}?dl=${encodeURIComponent(dlName(r))}` : null;
+const DL_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v10m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17v1.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
 
 function qs(opts={}){
   const u=new URLSearchParams();
@@ -229,7 +240,9 @@ function render(d){
       ? `<span class="badge reject" title="Outside the distribution the model was validated on — deliberately not assessed">⊘ Not assessed</span>`
       : `<span class="badge">Unlabelled</span>`;
     return `<article class="card ${state.sel===r.id?"sel":""}" data-id="${r.id}">
-      <div class="thumb">${u?`<img loading="lazy" src="${u}" alt="">`:`<span class="ph">OCT B-scan</span>`}${bio}</div>
+      <div class="thumb">${u?`<img loading="lazy" src="${u}" alt="">`:`<span class="ph">OCT B-scan</span>`}${bio}${
+        dlUrl(r)?`<a class="dl" href="${dlUrl(r)}" download="${dlName(r)}" title="Download full-resolution image"
+          aria-label="Download OCT_${String(r.id).padStart(7,"0")}">${DL_ICON}</a>`:""}</div>
       <div class="card-b">
         <h3>OCT_${String(r.id).padStart(7,"0")}</h3>
         <div class="meta">
@@ -247,7 +260,10 @@ function render(d){
   renderPager(Math.ceil(d.total/d.per_page)||1, d.page);
   syncMobileBar(d.total);
 
-  document.querySelectorAll(".card").forEach(c=>c.onclick=()=>openDetail(+c.dataset.id));
+  document.querySelectorAll(".card").forEach(c=>c.onclick=e=>{
+    if(e.target.closest(".dl")) return;     // download link handles its own click
+    openDetail(+c.dataset.id);
+  });
 }
 
 function group(id,icon,title,body,open=true){
@@ -436,7 +452,8 @@ function modelFoot(m){
       m.same_eye.slice(0,8).map(s=>{const su=imgUrl(s.thumb_key);
         return su?`<img src="${su}" data-id="${s.id}" alt="" title="Visit ${s.visit} · scan ${s.scan_index}">`
                  :`<div style="aspect-ratio:1;background:#0a0d14;border-radius:5px" data-id="${s.id}"></div>`;}).join("")}</div>`:""}
-    <div class="detail-foot"><button class="btn ghost" id="copy">Copy image path</button></div>`;
+    <div class="detail-foot">${dlUrl(m)?`<a class="btn" href="${dlUrl(m)}" download="${dlName(m)}">Download image</a>`:""}
+      <button class="btn ghost" id="copy">Copy image path</button></div>`;
 
   d.querySelector("#close").onclick=()=>{
     if(isMobile()){ closeSheet(); }

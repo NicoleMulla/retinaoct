@@ -1,0 +1,11 @@
+# torch is NOT the 2.4.0 pinned in serving/requirements.txt: Spaces run Python
+# 3.13, which 2.4.0 has no wheel for. 2.14.0 is what this handler was actually
+# verified against locally — same verdicts, same gate distances.
+timm==1.0.30
+torch==2.14.0
+pillow>=10.0
+numpy>=1.24
+gradio==5.50.0
+fastapi>=0.110
+uvicorn>=0.29
+huggingface_hub>=0.25

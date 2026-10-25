@@ -42,7 +42,7 @@ async function handle({ request, env }) {
     const rowsQ = env.DB.prepare(
       `SELECT i.id, i.trial, i.arm, i.subject, i.visit, i.eye, i.scan_index,
               i.patient_id, i.eye_id, i.bcva, i.cst,
-              i.has_biomarkers, i.biomarker_count, i.thumb_key, i.label_source
+              i.has_biomarkers, i.biomarker_count, i.thumb_key, i.full_key, i.label_source
        ${base} ORDER BY ${order} LIMIT ? OFFSET ?`
     ).bind(...bind, per, (page - 1) * per);
 
