@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Analyze a scan — Retina OCT</title>
 <meta name="description" content="Upload an OCT B-scan and see which retinal biomarkers our RETFound/OLIVES model predicts. Research use only.">
-<link rel="stylesheet" href="/styles.css?v=796c7c07">
+<link rel="stylesheet" href="/styles.css?v=232a2d62">
 <link rel="icon" href="/favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -172,9 +172,32 @@ $("#run").onclick = async () => {
   }
 };
 
+/* Original hourglass mark. Drawn inline so the quota state needs no image
+   asset, stays crisp at any size and follows the page's own palette. */
+const QUOTA_ART = `<svg class="quota-art" viewBox="0 0 120 120" role="img"
+  aria-label="An hourglass with the sand run through">
+  <circle cx="60" cy="60" r="54" fill="var(--brand-soft)"/>
+  <path d="M40 26h40M40 94h40" stroke="var(--brand)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M45 26v12c0 9 15 16 15 22s-15 13-15 22v12h30V82c0-9-15-16-15-22s15-13 15-22V26"
+        fill="none" stroke="var(--brand)" stroke-width="4.5" stroke-linejoin="round"/>
+  <path d="M51 86c0-6 9-10 9-10s9 4 9 10z" fill="var(--brand)"/>
+  <circle cx="60" cy="54" r="2.6" fill="var(--brand)" opacity=".55"/>
+</svg>`;
+
 function showError(msg, code){
+  // The daily GPU allowance is a hard stop, not a fault: no credits are loaded,
+  // so nothing is spent and nothing can be retried into working. Say so plainly
+  // rather than dressing it up as an error.
+  if(code === "quota_exceeded"){
+    $("#results").innerHTML = `<div class="quota">${QUOTA_ART}
+      <b>The quota for today is exceeded. Please try again tomorrow.</b>
+      <span>This runs on a free shared GPU with a daily limit. The allowance
+      resets within 24 hours, and nothing is charged for going over it.</span>
+      <a class="btn ghost" href="/">Browse the atlas meanwhile</a></div>`;
+    return;
+  }
   const hint = code === "cold_start"
-    ? `<p class="hint">The model scales to zero when idle to keep it cheap to run.</p>` : "";
+    ? `<p class="hint">The model sleeps when idle to keep it free to run.</p>` : "";
   $("#results").innerHTML =
     `<div class="verdict bad"><b>Could not analyze this image</b><span>${esc(msg)}</span></div>${hint}`;
 }

@@ -501,3 +501,14 @@ footer{border-top:1px solid var(--line);padding-block:22px 34px;color:var(--fain
   .an-grid{grid-template-columns:1fr;gap:18px}
   .drop{aspect-ratio:4/3}
 }
+
+/* Quota-exhausted state on the analyze page. Deliberately not styled as an
+   error: nothing failed and nothing was charged, the day's free allowance is
+   simply spent. */
+.quota{display:flex;flex-direction:column;align-items:center;text-align:center;
+  gap:9px;padding:34px 22px;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--surface)}
+.quota-art{width:96px;height:96px;margin-bottom:2px}
+.quota b{font-size:14.5px;font-weight:640;color:var(--ink);max-width:32ch;line-height:1.4}
+.quota span{font-size:12.5px;color:var(--muted);max-width:40ch;line-height:1.55}
+.quota .btn{margin-top:7px;padding:8px 14px;font-size:12.5px;text-decoration:none}

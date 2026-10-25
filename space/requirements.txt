@@ -1,11 +1,10 @@
-# torch is NOT the 2.4.0 pinned in serving/requirements.txt: Spaces run Python
-# 3.13, which 2.4.0 has no wheel for. 2.14.0 is what this handler was actually
-# verified against locally — same verdicts, same gate distances.
+# torch is pinned inside ZeroGPU's explicitly supported range (2.8.0-2.13.0).
+# NOT 2.4.0 as in serving/requirements.txt, which has no wheel for the Python
+# versions ZeroGPU runs, and not 2.14.0, which is outside the documented list.
 timm==1.0.30
-torch==2.14.0
+torch==2.13.0
 pillow>=10.0
 numpy>=1.24
 gradio==5.50.0
-fastapi>=0.110
-uvicorn>=0.29
+spaces
 huggingface_hub>=0.25

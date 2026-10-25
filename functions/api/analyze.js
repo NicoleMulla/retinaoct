@@ -92,6 +92,17 @@ export async function onRequestPost({ request, env }) {
       : "Could not reach the model endpoint.", { code: "upstream_unreachable" });
   }
 
+  // 429 means the Space's daily ZeroGPU allowance is spent. Deliberately NOT
+  // retryable and deliberately not a fallback to CPU: the account holds no
+  // pre-paid credits, so the quota is a hard stop and the honest answer is to
+  // say so until it resets.
+  if (up.status === 429) {
+    let detail = null;
+    try { detail = (await up.clone().json()).detail || null; } catch { /* ignore */ }
+    return fail(429, "The quota for today is exceeded. Please try again tomorrow.",
+                { code: "quota_exceeded", detail });
+  }
+
   // 503 means the replica is still booting — a normal, retryable state for an
   // endpoint that scales to zero or a Space that has gone to sleep, not a failure.
   if (up.status === 503) {

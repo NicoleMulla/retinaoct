@@ -84,13 +84,17 @@ class EndpointHandler:
             return {"error": f"could not decode image: {e}"}
 
         x, notes = self._preprocess(im)
+        # Follow the model's device: CPU here, CUDA under ZeroGPU. Both moves
+        # are no-ops when the model is already on the CPU, so this changes
+        # nothing about CPU results.
+        x = x.to(next(self.model.parameters()).device)
         with torch.no_grad():
             f = self.model.forward_features(x)[:, 0]
             logits = self.model.head(self.model.fc_norm(f)) \
                      if hasattr(self.model, "fc_norm") else self.model.head(f)
-            probs = torch.sigmoid(logits.float()).numpy()[0]
+            probs = torch.sigmoid(logits.float()).cpu().numpy()[0]
 
-        e = f.float().numpy()[0] - self.mu
+        e = f.float().cpu().numpy()[0] - self.mu
         dist = float(np.sqrt(e @ self.P @ e))
 
         if dist > self.gate["loose"]:

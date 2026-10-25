@@ -3,8 +3,10 @@ title: Retina OCT Biomarkers
 emoji: 👁️
 colorFrom: indigo
 colorTo: blue
-sdk: docker
-app_port: 7860
+sdk: gradio
+sdk_version: 5.50.0
+app_file: app.py
+python_version: 3.12.12
 pinned: false
 license: cc-by-nc-4.0
 short_description: OLIVES retinal biomarkers from an OCT B-scan
@@ -18,15 +20,28 @@ sixteen retinal biomarkers.
 
 **Research use only. Not a medical device and not for diagnostic use.**
 
+## Hardware
+
+Runs on **ZeroGPU**, which is free on a PRO account. Inference is sub-second on
+the shared GPU against roughly 19 seconds on free CPU.
+
+ZeroGPU is compatible only with the Gradio SDK, so gradio owns the web server
+and the JSON API is attached to the FastAPI app it creates. The GPU is held
+only for the duration of a single `@spaces.GPU` call.
+
+When the daily GPU allowance is spent, `/api/analyze` returns **429** with
+`code: "quota_exceeded"` rather than falling back to a slow CPU path or
+spending credits. The website turns that into a plain "try again tomorrow".
+
 ## Two surfaces
 
 | Route | Purpose |
 |---|---|
 | `GET /` | Gradio UI — drop in a B-scan and see the raw verdict |
-| `POST /api/analyse` | JSON API, used by retinaoct.com |
+| `POST /api/analyze` | JSON API, used by retinaoct.com |
 | `GET /api/health` | liveness check |
 
-`POST /api/analyse` accepts either `{"inputs": "<base64>"}` or raw image bytes,
+`POST /api/analyze` accepts either `{"inputs": "<base64>"}` or raw image bytes,
 and returns the handler's verdict dictionary. The JSON shape deliberately
 matches HuggingFace Inference Endpoints, so the website's proxy can point at
 either without a code change.

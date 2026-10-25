@@ -1,41 +1,43 @@
 """
-Retina OCT biomarker model, served from a free-tier HuggingFace Space.
+Retina OCT biomarker model, served on ZeroGPU.
+
+ZeroGPU is compatible only with the Gradio SDK, so gradio owns the web server.
+The JSON API is attached to the FastAPI app gradio creates, after launching it
+with prevent_thread_lock=True. Calling uvicorn.run() here instead would race
+gradio's own launcher for the port — that failure sank an earlier revision.
 
 Two surfaces on one process:
-  GET  /            Gradio UI — for trying the model directly on the Hub
-  POST /api/analyse JSON, {"inputs": "<base64>"} -> the handler's verdict dict
+  GET  /             Gradio UI, for trying the model on the Hub
+  POST /api/analyze  JSON, {"inputs": "<base64>"} -> the handler's verdict dict
+  GET  /api/health   liveness
 
-The JSON route deliberately mirrors the HF Inference Endpoints contract, so
-retinaoct.com's Cloudflare proxy talks to either without code changes.
-
-`handler.py` is NOT vendored here. It is pulled from the model repo alongside
-the weights, so the gate logic, thresholds and suppression rules can never
-drift between what was validated and what is served.
+`handler.py` is not vendored here. It is pulled from the model repo alongside
+the weights, so the gate logic, thresholds and suppression rules cannot drift
+from what was validated.
 """
 import base64
+import json
 import os
 import sys
 
-
 import gradio as gr
+import spaces
 import torch
-import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.responses import JSONResponse
 from huggingface_hub import snapshot_download
-
-# Torch's own default thread count is left alone deliberately. Forcing it was
-# measured as a regression on this Space: 13-15s per forward pass at the
-# default against 18-19s when pinned to the host's 16 cores, which the 2-vCPU
-# cgroup cannot actually run in parallel.
 
 REPO = os.environ.get("MODEL_REPO", "NicoleMulla/retfound-olives-16bm")
 TOKEN = os.environ.get("HF_TOKEN")
 MAX_BYTES = 8 * 1024 * 1024
 
-# Weights live in the model repo, not in this Space: one copy, one source of
-# truth, and the Space stays small enough to rebuild quickly. MODEL_DIR points
-# at an already-staged copy, which is how this is tested locally.
+# ZeroGPU checks the quota against the duration a job REQUESTS, not the time it
+# actually uses: a function declaring the 60s default is refused once fewer than
+# 60s of daily quota remain, even though this inference needs well under one
+# second. Asking for little keeps far more of the allowance usable and earns
+# higher queue priority.
+GPU_DURATION = int(os.environ.get("GPU_DURATION", "20"))
+
 local = os.environ.get("MODEL_DIR") or snapshot_download(
     REPO,
     token=TOKEN,
@@ -46,50 +48,52 @@ from handler import EndpointHandler  # noqa: E402  (needs the path above)
 
 HANDLER = EndpointHandler(local)
 
-app = FastAPI(title="Retina OCT biomarkers")
-
-
-@app.get("/api/health")
-def health():
-    return {"ok": True, "model": REPO, "biomarkers": len(HANDLER.bm),
-            "host_cpus": os.cpu_count(), "torch_threads": torch.get_num_threads()}
-
-
-@app.post("/api/analyse")
-async def analyse(request: Request):
-    """Accepts {"inputs": base64} — or raw image bytes, so curl works too."""
-    ctype = (request.headers.get("content-type") or "").lower()
-    body = await request.body()
-    if len(body) > MAX_BYTES * 2:                 # base64 inflates by ~4/3
-        return JSONResponse({"error": "payload too large"}, status_code=413)
-
-    if ctype.startswith("application/json"):
-        try:
-            payload = __import__("json").loads(body)
-        except Exception:
-            return JSONResponse({"error": "malformed JSON"}, status_code=400)
-        blob = payload.get("inputs")
-        if blob is None:
-            return JSONResponse({"error": "no 'inputs' field"}, status_code=400)
-    else:
-        blob = base64.b64encode(body).decode()
-
+# ZeroGPU wants models placed on cuda at module import, not lazily inside the
+# decorated function: a CUDA emulation layer makes this legal outside @spaces.GPU
+# and the real transfer is optimised to happen at startup. Off ZeroGPU (local
+# testing) there is no CUDA, so stay on the CPU.
+ON_ZERO = bool(os.environ.get("SPACES_ZERO_GPU")) or torch.cuda.is_available()
+if ON_ZERO:
     try:
-        out = HANDLER({"inputs": blob})
-    except Exception as e:                        # never leak a traceback to the web
-        return JSONResponse({"error": f"inference failed: {type(e).__name__}"}, status_code=500)
+        HANDLER.model.to("cuda")
+        print("[startup] model placed on cuda")
+    except Exception as exc:                      # fall back rather than fail to boot
+        ON_ZERO = False
+        print(f"[startup] cuda placement failed ({type(exc).__name__}), staying on cpu")
+else:
+    print("[startup] no ZeroGPU detected — running on cpu")
 
-    return JSONResponse(out, status_code=422 if "error" in out else 200)
+
+def _is_quota_error(exc) -> bool:
+    """ZeroGPU refuses a job when the daily allowance is spent.
+
+    It surfaces as a message like "You have exceeded your Pro ZeroGPU quota
+    (60s requested vs. 30s left). Try again in 1:23:45." The exception type is
+    not part of any stable contract, so match on the text instead.
+    """
+    msg = str(exc).lower()
+    return "quota" in msg and ("exceed" in msg or "left" in msg or "try again" in msg)
+
+
+@spaces.GPU(duration=GPU_DURATION)
+def _infer(blob: str) -> dict:
+    return HANDLER({"inputs": blob})
 
 
 def ui(image):
-    """Gradio path. Returns the same dict the API does, for eyeballing on the Hub."""
+    """Gradio path — returns the same dict the API does, for eyeballing on the Hub."""
     if image is None:
         return {"error": "no image"}
     import io
     buf = io.BytesIO()
     image.save(buf, format="PNG")
-    return HANDLER({"inputs": base64.b64encode(buf.getvalue()).decode()})
+    try:
+        return _infer(base64.b64encode(buf.getvalue()).decode())
+    except Exception as exc:
+        if _is_quota_error(exc):
+            return {"error": "Today's GPU quota is exhausted. Try again tomorrow.",
+                    "code": "quota_exceeded", "detail": str(exc)}
+        raise
 
 
 demo = gr.Interface(
@@ -104,9 +108,59 @@ demo = gr.Interface(
     ),
 )
 
-app = gr.mount_gradio_app(app, demo, path="/")
+# gradio owns the server; attach the JSON API to the app it builds.
+demo.launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", "7860")),
+            prevent_thread_lock=True, show_api=False)
+app = demo.app
 
-if __name__ == "__main__":
-    # Deliberately NOT GRADIO_SERVER_PORT: under the gradio SDK that variable
-    # points at a port the platform's own launcher has already bound.
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
+
+@app.get("/api/health")
+def health():
+    return {"ok": True, "model": REPO, "biomarkers": len(HANDLER.bm),
+            "device": "cuda" if ON_ZERO else "cpu", "gpu_duration": GPU_DURATION}
+
+
+@app.post("/api/analyze")
+async def analyze(request: Request):
+    """Accepts {"inputs": base64} or raw image bytes, so curl works too."""
+    ctype = (request.headers.get("content-type") or "").lower()
+    body = await request.body()
+    if len(body) > MAX_BYTES * 2:                 # base64 inflates by ~4/3
+        return JSONResponse({"error": "payload too large"}, status_code=413)
+
+    if ctype.startswith("application/json"):
+        try:
+            payload = json.loads(body)
+        except Exception:
+            return JSONResponse({"error": "malformed JSON"}, status_code=400)
+        blob = payload.get("inputs")
+        if blob is None:
+            return JSONResponse({"error": "no 'inputs' field"}, status_code=400)
+    else:
+        blob = base64.b64encode(body).decode()
+
+    try:
+        out = _infer(blob)
+    except Exception as exc:
+        if _is_quota_error(exc):
+            # 429 so the website can tell "come back tomorrow" apart from a fault.
+            return JSONResponse(
+                {"error": "Today's GPU quota is exhausted.",
+                 "code": "quota_exceeded", "detail": str(exc)}, status_code=429)
+        return JSONResponse(
+            {"error": f"inference failed: {type(exc).__name__}"}, status_code=500)
+
+    return JSONResponse(out, status_code=422 if "error" in out else 200)
+
+
+# Gradio registers a catch-all GET route for its single-page app when it
+# launches, and that happened before the routes above were added — so a later
+# GET route is shadowed by it and /api/health returned gradio's HTML. Move ours
+# to the front of the router. POST was unaffected (the catch-all is GET-only),
+# but reordering both keeps it correct if that ever changes.
+_MINE = {"/api/health", "/api/analyze"}
+for _route in [r for r in app.router.routes if getattr(r, "path", None) in _MINE][::-1]:
+    app.router.routes.remove(_route)
+    app.router.routes.insert(0, _route)
+
+demo.block_thread()

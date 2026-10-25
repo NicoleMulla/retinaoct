@@ -59,59 +59,63 @@ inference. At 15 minutes warm, one upload costs roughly $0.017.
 
 ---
 
-## Host: a private Docker Space
+## Host: a private ZeroGPU Space
 
-`NicoleMulla/retinaoct-biomarkers` — private, `cpu-basic`, **included in HF PRO
-at no per-hour cost**. Docker SDK, not gradio — see below.
+`NicoleMulla/retinaoct-biomarkers` — private, **ZeroGPU**, free on a PRO
+account. Inference went from ~19s on free CPU to **0.69s end-to-end through the
+website**, roughly 28x.
 
-| | Space `cpu-basic` | Inference Endpoint `intel-spr x2` |
+| | free CPU (`cpu-basic`) | **ZeroGPU** |
 |---|---|---|
-| Cost | included in PRO | $0.067/hr while warm |
-| RAM | 16 GB | 4 GB (peak use 2.81 GB — 70%) |
-| Reachable from a Worker | yes, token-authenticated | **no — see below** |
+| Latency (warm, via the site) | 13-19s, variable | **0.69s** |
+| Cost | free | free on PRO |
+| Daily limit | none | a GPU-time quota, then a hard stop |
 
-### Why not the Inference Endpoint
+### Quota is a hard stop, by design
 
-It was created and did build successfully, but came back as `type: "private"`
-despite `"protected"` being requested. On HF, a *private* endpoint is reachable
-only over AWS PrivateLink, not the public internet — so a Cloudflare Worker
-cannot call it. It was deleted the same session; billing ran for a few minutes.
+The account is `billingMode: prepaid` and holds no credits, so exceeding the
+daily GPU allowance cannot bill anything — the request simply fails. The Space
+returns **429 / `quota_exceeded`**, the Worker passes it through, and the page
+shows "The quota for today is exceeded. Please try again tomorrow." with no
+retry and no fallback to a slow CPU path.
 
-If that route is ever revisited, the endpoint must come up as `protected`
-(token over the internet), and that needs confirming against the live API
-rather than assumed from the request body.
+`@spaces.GPU(duration=20)` rather than the 60s default: quota is checked
+against the duration a job *requests*, not what it uses, so a 60s declaration
+is refused once under 60s remains even though inference needs under a second.
+Asking for little keeps far more of the allowance usable and raises queue
+priority.
 
-### Verified locally before deploying
+### Two gradio-SDK traps
 
-`space/app.py` was run against the real weights under gradio 5.50.0:
+ZeroGPU works **only** with the Gradio SDK, which is what forced the move off
+Docker. Two consequences, both found by testing rather than by reading:
 
-| Route | Result |
-|---|---|
-| `GET /api/health` | 200, 16 biomarkers loaded |
-| `POST /api/analyse` (JSON base64) | 200, `verdict=ok`, 0.14 s |
-| `POST /api/analyse` (raw bytes) | 200, identical distance — both paths agree |
-| Garbage input | 422, clean error, no traceback leaked |
-| `GET /` (Gradio UI) | 200 |
+1. **The launcher owns the port.** Calling `uvicorn.run()` races it and the
+   Space dies with `[Errno 98] address already in use`. Instead,
+   `demo.launch(prevent_thread_lock=True)` hands back gradio's own FastAPI app
+   and the JSON API is attached to that.
+2. **GET routes are shadowed by the SPA.** Gradio registers its single-page
+   route at launch, so `/api/health` added afterwards returns gradio's HTML.
+   Moving the API routes to the front of the router fixes this *locally* —
+   verified, it returns JSON — but the deployed Space still serves the SPA for
+   that GET, so the shadowing happens in HuggingFace's own layer in front of
+   the Space, not in the app. **POST is unaffected**, which is why
+   `/api/analyze` works. `/api/health` is therefore only useful when running
+   the app locally; treat a successful `POST /api/analyze` as the liveness
+   check in production.
 
-Two compatibility problems were caught this way rather than in a build log:
-`allow_flagging` was renamed in Gradio 5 (removed), and `sdk_version` had been
-guessed at a release that does not exist — gradio is on 6.x, so the Space pins
-the latest 5.x, 5.50.0.
+### handler.py is device-agnostic now
 
-### Two failures the Space build found anyway
+It called `.numpy()` on tensors that would live on CUDA. It now follows the
+model's device and moves results back to CPU before converting. Verified
+output-neutral before deploying: old and new loaded side by side over real
+B-scans, fundus photos and noise gave **max|Δp| = 0.0** across all three gate
+verdicts. GPU inference returns the same gate distance as CPU (24.2 on the
+pinned benchmark scan).
 
-**`torch==2.4.0` has no Python 3.13 wheel.** Spaces run 3.13 and only 2.5.0
-onwards is published for it. The Space pins **2.14.0** — not a guess, but the
-version the handler was verified against locally, producing identical verdicts
-and gate distances. `serving/requirements.txt` and the model repo's copy both
-still pin 2.4.0, so an Inference Endpoint deploy would hit the same wall.
-
-**The gradio SDK races the app for its port.** With `sdk: gradio`, the platform
-launcher and this app's own `uvicorn.run` both try to bind, and the Space dies
-with `[Errno 98] address already in use` on 7861. Switching to `sdk: docker`
-with an explicit `CMD` and `app_port: 7860` gives the app sole ownership of the
-entrypoint. `GRADIO_SERVER_PORT` is deliberately *not* read — under the gradio
-SDK it points at a port the launcher has already taken.
+That the GPU is genuinely in use is evidenced by latency rather than by the
+health endpoint: 0.69s end-to-end versus 13-19s on CPU. A ViT-L forward pass
+cannot run that fast on two shared vCPUs.
 
 ### Deploying an update
 
@@ -119,25 +123,24 @@ SDK it points at a port the launcher has already taken.
 doppler run -p retinaoct -c dev -- ./scripts/deploy_space.sh
 ```
 
-Pushes `space/` and waits for the rebuild. `MODEL_DIR` runs it against an
-already-staged local copy of the weights instead of downloading them:
+Run it locally against already-staged weights, no download, no GPU:
 
 ```bash
-MODEL_DIR=~/oct-data/serving_test PORT=7870 python space/app.py
+MODEL_DIR=~/oct-data/serving_test PORT=7880 python space/app.py
 ```
 
 ### Wiring it into the website
 
+The route is `/api/analyze`. Renaming it without updating the Pages secret took
+production down with a 502 — and note that **changing a Pages secret does not
+affect the running deployment until the next deploy**.
+
 ```bash
 npx wrangler pages secret put HF_ENDPOINT_URL --project-name retinaoct
-#   https://nicolemulla-retinaoct-biomarkers.hf.space/api/analyse
+#   https://nicolemulla-retinaoct-biomarkers.hf.space/api/analyze
 npx wrangler pages secret put HF_TOKEN --project-name retinaoct
+npx wrangler pages deploy public --project-name retinaoct --branch main
 ```
-
-Until both exist, `/analyze` returns a clean
-`"Analysis is not configured on this deployment yet."` and the rest of the site
-is unaffected. A sleeping Space answers with HTML rather than JSON, which the
-proxy already treats as a cold start rather than a broken model.
 
 ---
 

@@ -49,7 +49,7 @@ imgs = glob.glob(os.path.expanduser("~/oct-data/extracted/olives/**/*.tif"), rec
 if not imgs:
     print("    no local OLIVES scan found — skipped"); sys.exit(0)
 body = json.dumps({"inputs": base64.b64encode(open(imgs[0], "rb").read()).decode()}).encode()
-req = urllib.request.Request(url + "/api/analyse", body,
+req = urllib.request.Request(url + "/api/analyze", body,
     {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"})
 for attempt in range(8):                              # first call wakes the Space
     try:
@@ -57,7 +57,7 @@ for attempt in range(8):                              # first call wakes the Spa
         out = json.load(urllib.request.urlopen(req, timeout=240))
         print(f"    ok in {time.time()-t:.1f}s — verdict={out.get('verdict')} "
               f"distance={out.get('distance')} predictions={len(out.get('predictions') or [])}")
-        print(f"\nSet as the website's HF_ENDPOINT_URL:\n    {url}/api/analyse")
+        print(f"\nSet as the website's HF_ENDPOINT_URL:\n    {url}/api/analyze")
         break
     except urllib.error.HTTPError as e:
         print(f"    attempt {attempt+1}: HTTP {e.code} — still waking, retrying")
