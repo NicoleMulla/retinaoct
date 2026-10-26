@@ -88,17 +88,27 @@ nav a:hover{color:#fff}
    centred on the text was darkest exactly where the bright band sits, which
    erased the one feature that identifies it. Vertical instead: heavy at the
    top so the headline stays crisp, clearing downward so the layers show. */
-/* The asset is 2000x640 with the retinal band in rows 30-70% and near-black
-   above and below, and it is dimmer on the left (0.13) than the right (0.25).
-   object-position pushes that band low in the frame so it runs behind the
-   cards, and the scrim is heavy only across the top third where the headline
-   sits — it must not sit on the band itself or the scan stops reading as one. */
-.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:50% 24%;
-  mix-blend-mode:screen;opacity:.95;filter:contrast(1.3) brightness(1.12)}
-.hero-bg::after{content:"";position:absolute;inset:0;
+/* A single real 1536x496 B-scan, not a stitch and not an upscale — the old
+   asset measured 102 on laplacian variance against ~750 for a native scan, so
+   it was blurred beyond rescue and no CSS could sharpen it. This one measures
+   2793.
+   `mix-blend-mode:screen` is deliberately NOT used: screen lifts the darks
+   into the navy and the retinal layers lose their edges, which is what made
+   the scan read as a smear. Plain compositing at partial opacity keeps the
+   speckle and the layer boundaries, and the navy beneath tints it. */
+.hero-bg img{width:100%;height:100%;object-fit:cover;object-position:50% 46%;
+  opacity:.92;filter:contrast(1.14)}
+/* Tint rather than fade. Dropping the opacity to blend the scan into the navy
+   lifted its blacks and dimmed its bright band at the same time, flattening
+   the layers into mush. `color` blending recolours the greyscale to navy while
+   leaving luminance — so the speckle and the layer edges survive intact. */
+.hero-bg::before{content:"";position:absolute;inset:0;z-index:1;
+  background:#1a3372;mix-blend-mode:color;opacity:.62}
+/* Legibility for the headline only, lifted clear of the retinal band below. */
+.hero-bg::after{content:"";position:absolute;inset:0;z-index:2;
   background:linear-gradient(to bottom,
-    rgba(8,16,38,.95) 0%, rgba(8,16,38,.88) 22%, rgba(8,16,38,.62) 38%,
-    rgba(8,16,38,.18) 56%, rgba(8,16,38,0) 72%)}
+    rgba(7,14,34,.88) 0%, rgba(7,14,34,.70) 24%, rgba(7,14,34,.34) 42%,
+    rgba(7,14,34,.12) 58%, rgba(7,14,34,.22) 100%)}
 
 /* layout */
 .app{display:grid;grid-template-columns:262px minmax(0,1fr) 352px;gap:18px;
