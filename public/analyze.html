@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Analyze a scan — Retina OCT</title>
 <meta name="description" content="Upload an OCT B-scan and see which retinal biomarkers our RETFound/OLIVES model predicts. Research use only.">
-<link rel="stylesheet" href="/styles.css?v=7485d184">
+<link rel="stylesheet" href="/styles.css?v=a9cda693">
 <link rel="icon" href="/favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -73,6 +73,7 @@
           <span class="drop-meta">PNG, JPEG, TIFF, BMP or WebP · up to 8 MB</span>
         </div>
         <img id="preview" alt="" hidden>
+        <canvas id="salmap" aria-hidden="true" hidden></canvas>
       </div>
 
       <div class="an-actions">
@@ -99,7 +100,16 @@
 
 <script>
 const $ = s => document.querySelector(s);
-let file = null, busy = false;
+let file = null, busy = false, previewOK = true;
+
+function markNoPreview(){
+  if($("#nopreview")) return;
+  $("#filemeta").insertAdjacentHTML("afterend",
+    `<p class="privacy" id="nopreview">Your browser cannot display this file type, so the
+     preview above is blank and the highlight cannot be drawn on it. The scan itself is
+     read correctly and the results below are unaffected. Upload a PNG or JPEG to see the
+     highlight.</p>`);
+}
 
 const MAX = 8 * 1024 * 1024;
 const kb = n => n < 1024*1024 ? (n/1024).toFixed(0)+" KB" : (n/1024/1024).toFixed(1)+" MB";
@@ -116,11 +126,19 @@ function choose(f){
   file = f;
   const url = URL.createObjectURL(f);
   const p = $("#preview");
+  /* Browsers cannot decode TIFF, so the preview stays blank for it. The model
+     reads TIFF fine, so analysis still runs — but the highlight overlay has no
+     rendered image to sit on, and saying so beats a button that does nothing. */
+  previewOK = true;
+  p.onerror = () => { previewOK = false; markNoPreview(); };
+  p.onload  = () => { if(!p.naturalWidth){ previewOK = false; markNoPreview(); } };
   p.src = url; p.hidden = false;
   $("#drop-inner").hidden = true;
   $("#run").disabled = false;
   $("#reset").hidden = false;
   $("#filemeta").textContent = `${f.name} · ${kb(f.size)}`;
+  salMaps = null; clearMap();
+  const np = $("#nopreview"); if(np) np.remove();
   $("#results").innerHTML = `<div class="empty">Ready. Press <b>Analyze scan</b>.</div>`;
 }
 
@@ -240,6 +258,8 @@ function render(d){
         </div>
         <div class="pred-bar"><i style="width:${pct}%"></i>
           <u style="left:${thr}%" title="Decision threshold ${thr}%"></u></div>
+        <button class="why" data-bio="${esc(p.biomarker)}"
+          data-label="${esc(p.label || p.biomarker)}">Why this prediction?</button>
       </div>`;
     }).join("") + `</div>`);
 
@@ -278,6 +298,120 @@ function render(d){
 
   $("#results").innerHTML = out.join("");
 }
+
+/* ---------- "why this prediction" ---------- */
+/* One request fetches the influence of every biomarker at once, because each
+   pass through the model returns all of them — so this is fetched once per
+   image and cached, however many buttons get pressed. */
+let salMaps = null, salBusy = false, salActive = null;
+
+function dropRects(){
+  /* The model sees a centre-cropped square, so the overlay has to sit on that
+     square and not on the whole upload — otherwise it would appear to explain
+     parts of the image the model never saw. */
+  const img = $("#preview"), box = $("#drop");
+  const bw = box.clientWidth, bh = box.clientHeight;
+  const nw = img.naturalWidth, nh = img.naturalHeight;
+  if(!nw || !nh) return null;
+  const scale = Math.min(bw/nw, bh/nh);           // object-fit: contain
+  const dw = nw*scale, dh = nh*scale;
+  const dx = (bw-dw)/2, dy = (bh-dh)/2;
+  const side = Math.min(nw, nh)*scale;            // the centre square
+  return { bw, bh, cx: dx+(dw-side)/2, cy: dy+(dh-side)/2, side,
+           cropped: Math.abs(nw-nh) > Math.min(nw,nh)*0.02 };
+}
+
+function drawMap(key){
+  const cv = $("#salmap"), r = dropRects();
+  if(!cv || !r || !salMaps || !salMaps[key]) return;
+  cv.width = r.bw; cv.height = r.bh; cv.hidden = false;
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0,0,r.bw,r.bh);
+  const v = salMaps[key], n = Math.round(Math.sqrt(v.length)), cell = r.side/n;
+  for(let i=0;i<v.length;i++){
+    const a = v[i];
+    if(a < 0.12) continue;                         // leave untouched areas clear
+    ctx.fillStyle = `rgba(255,${Math.round(190-120*a)},40,${(0.14+0.5*a).toFixed(3)})`;
+    ctx.fillRect(r.cx+(i%n)*cell, r.cy+Math.floor(i/n)*cell, cell+0.6, cell+0.6);
+  }
+  ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 1.5;
+  ctx.strokeRect(r.cx, r.cy, r.side, r.side);      // show exactly what was analysed
+}
+
+function clearMap(){
+  const cv = $("#salmap");
+  if(cv){ cv.hidden = true; const c = cv.getContext("2d"); c.clearRect(0,0,cv.width,cv.height); }
+  salActive = null;
+  document.querySelectorAll(".why").forEach(b => b.classList.remove("on"));
+  const ex = $("#sal-note"); if(ex) ex.remove();
+}
+
+function explainNote(label, drew){
+  const r = dropRects();
+  return `<div class="sal-note" id="sal-note">
+    <b>What the highlight means</b>
+    <span>${drew ? "The shaded areas are" : "This would shade"} the parts of your scan that this result for
+    <em>${esc(label)}</em> depended on most. We blur one small patch at a time, run the
+    scan through again, and measure how far the answer moves. Blur a patch that mattered
+    and the answer shifts, so that patch is shaded; blur one that did not and it stays clear.</span>
+    <span>It shows <b>where</b> the model responded, not <b>what</b> it recognised — it cannot
+    name structures. It works in blocks of roughly a fiftieth of the image, so it points at a
+    region rather than a precise spot.${r && r.cropped
+      ? " The white outline marks the square that was analysed; anything outside it was cropped away before the model saw your scan."
+      : ""}${drew ? "" : " Your browser cannot display this file type, so there is no image here to shade \u2014 upload a PNG or JPEG to see it."}</span>
+    <button class="btn ghost" id="sal-hide">Hide highlight</button></div>`;
+}
+
+async function onWhy(btn){
+  const key = btn.dataset.bio, label = btn.dataset.label;
+  if(salActive === key){ clearMap(); return; }
+  if(salBusy) return;
+  if(!salMaps){
+    salBusy = true;
+    const old = btn.textContent;
+    btn.textContent = "Working it out…"; btn.disabled = true;
+    try{
+      const r = await fetch("/api/explain", {
+        method:"POST", headers:{ "content-type": file.type || "application/octet-stream" }, body:file });
+      const d = await r.json().catch(() => ({ error:`Request failed (${r.status}).` }));
+      if(!r.ok || !d.maps){
+        btn.textContent = old; btn.disabled = false; salBusy = false;
+        showError(d.error || "Could not work out an explanation.", d.code);
+        return;
+      }
+      salMaps = d.maps;
+    }catch{
+      btn.textContent = old; btn.disabled = false; salBusy = false;
+      showError("Could not reach the server."); return;
+    }
+    btn.textContent = old; btn.disabled = false; salBusy = false;
+  }
+  if(!salMaps[key]){
+    clearMap();
+    const host = btn.closest(".pred");
+    host.insertAdjacentHTML("afterend",
+      `<div class="sal-note" id="sal-note"><b>No highlight for this one</b>
+       <span>Blurring any part of the scan left this result unchanged, so there is no
+       region to point at.</span>
+       <button class="btn ghost" id="sal-hide">Close</button></div>`);
+    $("#sal-hide").onclick = clearMap;
+    return;
+  }
+  clearMap();
+  salActive = key;
+  btn.classList.add("on");
+  const drew = !!dropRects();
+  if(drew) drawMap(key);
+  btn.closest(".pred").insertAdjacentHTML("afterend", explainNote(label, drew));
+  $("#sal-hide").onclick = clearMap;
+  $("#salmap").scrollIntoView({ behavior:"smooth", block:"nearest" });
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest(".why");
+  if(b) onWhy(b);
+});
+window.addEventListener("resize", () => { if(salActive) drawMap(salActive); });
 
 /* ---------- mobile menu sheet ---------- */
 (function(){

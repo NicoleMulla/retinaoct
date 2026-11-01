@@ -14,6 +14,10 @@ body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--font);
   font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 button{font:inherit;cursor:pointer}
+/* An author rule like `.drop-inner{display:flex}` beats the UA rule behind the
+   [hidden] attribute, so elements toggled with `el.hidden = true` stay on
+   screen. This has now caused two layout bugs; close the category once. */
+[hidden]{display:none !important}
 .wrap{max-width:1560px;margin-inline:auto;padding-inline:20px}
 
 /* header */
@@ -490,9 +494,6 @@ footer{border-top:1px solid var(--line);padding-block:22px 34px;color:var(--fain
 .drop-inner span{font-size:12.5px}
 .drop-meta{color:var(--faint);font-size:11.5px;margin-top:3px}
 .drop img{width:100%;height:100%;object-fit:contain;background:#0a0d14;display:block}
-/* An author `display:block` beats the UA rule behind the [hidden] attribute, so
-   without this the empty preview renders as a black slab under the drop zone. */
-.drop img[hidden]{display:none}
 
 .an-actions{display:flex;gap:9px;margin-top:13px}
 .an-actions .btn{flex:1;padding:10px 12px;font-size:13px;text-align:center}
@@ -612,3 +613,23 @@ footer{border-top:1px solid var(--line);padding-block:22px 34px;color:var(--fain
 .notice span{font-size:12.5px;color:var(--muted);max-width:44ch;line-height:1.55}
 .notice .notice-sub{color:var(--faint);font-size:11.5px;max-width:42ch;
   padding-top:7px;margin-top:3px;border-top:1px solid var(--line-2)}
+
+/* ---------------- "why this prediction" ---------------- */
+/* The overlay sits on .drop, which is already position:relative. */
+#salmap{position:absolute;inset:0;pointer-events:none;z-index:3}
+.why{margin-top:10px;background:none;border:1px solid var(--line);border-radius:7px;
+  color:var(--brand);font:inherit;font-size:11.5px;font-weight:550;
+  padding:5px 10px;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.why:hover{background:var(--brand-soft);border-color:var(--brand)}
+.why:focus-visible{outline:2px solid var(--brand-soft);outline-offset:1px}
+.why.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.why:disabled{opacity:.6;cursor:default}
+/* Explanation sits directly under the prediction it belongs to, so it is never
+   ambiguous which result is being explained. */
+.sal-note{display:flex;flex-direction:column;gap:7px;margin:9px 0 2px;
+  padding:13px 14px;border-radius:9px;background:var(--brand-soft);
+  border:1px solid #d6dcff}
+.sal-note b{font-size:12.5px;font-weight:640;color:var(--ink)}
+.sal-note span{font-size:12px;color:var(--body);line-height:1.55}
+.sal-note em{font-style:normal;font-weight:600;color:var(--ink)}
+.sal-note .btn{align-self:flex-start;margin-top:3px;padding:6px 11px;font-size:11.5px}

@@ -257,7 +257,95 @@ async def analyze(request: Request):
 # GET route is shadowed by it and /api/health returned gradio's HTML. Move ours
 # to the front of the router. POST was unaffected (the catch-all is GET-only),
 # but reordering both keeps it correct if that ever changes.
-_MINE = {"/api/health", "/api/analyze"}
+
+# ---- explanation maps -------------------------------------------------------
+# Occlusion: blur a small region, re-run, and record how far each prediction
+# moves. Model-dependent by construction, so unlike gradient attribution it
+# cannot drift free of what the model learned — validated over 6 scans and 4
+# biomarkers, correlation with randomised weights -0.055..+0.032 (Chefer scored
+# +0.831 on the same test and was rejected).
+#
+# Blurring beats blanking: a grey square is an artefact no B-scan contains, so
+# the model reacts to the hole wherever it is put and the map smears. Measured
+# concentration 0.83-0.92 with blur against 0.40-0.64 with grey.
+#
+# One sweep yields every biomarker at once, because each forward pass returns
+# the whole output vector. 196 occlusions costs ~0.9s on the GPU.
+EXPLAIN_GRID = int(os.environ.get("EXPLAIN_GRID", "14"))
+EXPLAIN_CHUNK = int(os.environ.get("EXPLAIN_CHUNK", "98"))
+
+
+@spaces.GPU(duration=40)
+def _explain(blob: str, grid: int, chunk: int) -> dict:
+    import base64 as _b64, io as _io
+    import numpy as _np
+    from PIL import Image as _Image, ImageFilter as _IF
+
+    im = _Image.open(_io.BytesIO(_b64.b64decode(blob)))
+    x, _ = HANDLER._preprocess(im)
+    blurred, _ = HANDLER._preprocess(im.filter(_IF.GaussianBlur(9)))
+    dev = next(HANDLER.model.parameters()).device
+    x, blurred = x.to(dev), blurred.to(dev)
+    M = HANDLER.model
+
+    def head(f):
+        return M.head(M.fc_norm(f)) if hasattr(M, "fc_norm") else M.head(f)
+
+    with torch.no_grad():
+        base = torch.sigmoid(head(M.forward_features(x)[:, 0]))[0].cpu().numpy()
+
+    step = 224 // grid
+    variants = []
+    for gy in range(grid):
+        for gx in range(grid):
+            v = x.clone()
+            v[:, :, gy*step:(gy+1)*step, gx*step:(gx+1)*step] = \
+                blurred[:, :, gy*step:(gy+1)*step, gx*step:(gx+1)*step]
+            variants.append(v)
+
+    outs = []
+    with torch.no_grad():
+        for i in range(0, len(variants), chunk):
+            b = torch.cat(variants[i:i+chunk], 0)
+            outs.append(torch.sigmoid(head(M.forward_features(b)[:, 0])).cpu().numpy())
+    P = _np.concatenate(outs, 0)                       # (grid*grid, n_biomarkers)
+
+    drop = base[None, :] - P                           # positive = blurring hurt the score
+    maps = {}
+    for j, name in enumerate(HANDLER.bm):
+        if not HANDLER.usable[j]:
+            continue                                   # no map for what the model cannot predict
+        d = _np.clip(drop[:, j], 0, None)
+        peak = float(d.max())
+        if peak <= 0:
+            continue                                   # nothing moved the score; say nothing
+        maps[name] = [round(float(v), 4) for v in (d / peak)]
+    return {"grid": grid, "maps": maps}
+
+
+@app.post("/api/explain")
+async def explain(request: Request):
+    """{"inputs": "<base64>"} -> normalised 0-1 influence per cell, per biomarker."""
+    body = await request.body()
+    ctype = (request.headers.get("content-type") or "").lower()
+    if len(body) > MAX_BYTES * 2:
+        return JSONResponse({"error": "payload too large"}, status_code=413)
+    if ctype.startswith("application/json"):
+        try:
+            blob = json.loads(body)["inputs"]
+        except Exception:
+            return JSONResponse({"error": "send {\"inputs\": base64}"}, status_code=400)
+    else:
+        blob = base64.b64encode(body).decode()
+    try:
+        return JSONResponse(_explain(blob, EXPLAIN_GRID, EXPLAIN_CHUNK))
+    except Exception as exc:
+        if _is_quota_error(exc):
+            return JSONResponse({"error": "Today's GPU quota is exhausted.",
+                                 "code": "quota_exceeded"}, status_code=429)
+        return JSONResponse({"error": f"{type(exc).__name__}"}, status_code=500)
+
+_MINE = {"/api/health", "/api/analyze", "/api/explain"}
 for _route in [r for r in app.router.routes if getattr(r, "path", None) in _MINE][::-1]:
     app.router.routes.remove(_route)
     app.router.routes.insert(0, _route)
