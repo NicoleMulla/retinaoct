@@ -18,6 +18,7 @@ import numpy as np, torch, timm
 from PIL import Image
 
 MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+SIDE = 224
 MAX_PIXELS = 40_000_000          # reject decompression bombs before decode
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
@@ -55,19 +56,36 @@ class EndpointHandler:
         return im
 
     def _preprocess(self, im):
-        """OLIVES is ~1:1 (504x496), so a plain resize is distortion-free for
-        in-domain input. Wide B-scans are centre-cropped to square first —
-        squashing 3:1 to 1:1 would stretch layer geometry by 3x, and layer
-        geometry is the entire signal."""
+        """Scale until the shorter side reaches 224, then centre-crop the
+        overflow. One rule for every input, no special case.
+
+        This previously cropped to a square only when the aspect ratio fell
+        outside 0.8-1.25 and resized non-uniformly otherwise, which squashed
+        57% of Kermany scans by up to 25%. Layer geometry is the whole signal,
+        so distorting it is worse than cropping it. For genuinely wide scans
+        the two routes select the same region; the difference is confined to
+        the band that used to be squashed.
+
+        Resizing before cropping also leaves real pixels just outside the crop
+        for the resampling kernel to draw on, so the edges are slightly
+        cleaner than cropping at full resolution first."""
         im = im.convert("RGB")
         w, h = im.size
         notes = []
-        ar = w / h
-        if ar > 1.25 or ar < 0.8:
-            s = min(w, h)
-            im = im.crop(((w-s)//2, (h-s)//2, (w+s)//2, (h+s)//2))
-            notes.append(f"centre-cropped from {w}x{h} (aspect {ar:.2f}:1) to square")
-        im = im.resize((224, 224), Image.BICUBIC)
+        scale = max(SIDE / w, SIDE / h)
+        nw, nh = max(SIDE, round(w * scale)), max(SIDE, round(h * scale))
+        if (nw, nh) != (w, h):
+            im = im.resize((nw, nh), Image.BICUBIC)
+        kept = 100.0 * min(w, h) / max(w, h)
+        if (nw, nh) != (SIDE, SIDE):
+            left, top = (nw - SIDE) // 2, (nh - SIDE) // 2
+            im = im.crop((left, top, left + SIDE, top + SIDE))
+        # Only say so when it is worth saying. Every image is cropped by some
+        # sub-pixel amount after a uniform scale, and reporting "centre-cropped"
+        # on a 504x496 scan that kept 98% reads as a warning about nothing.
+        if kept < 95.0:
+            notes.append(f"centre-cropped from {w}x{h} (aspect {w/h:.2f}:1); "
+                         f"{kept:.0f}% of the longer side was analysed")
         x = np.asarray(im, dtype=np.float32) / 255.0
         x = (x - np.array(MEAN)) / np.array(STD)
         return torch.from_numpy(x.transpose(2, 0, 1)).float()[None], notes
