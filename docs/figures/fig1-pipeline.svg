@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180mm" height="144mm" viewBox="0 0 510 408" font-family="Helvetica, Arial, sans-serif">
+<title>From retinal OCT acquisition to biomarker-informed clinical interpretation</title>
+<desc>Four-stage pipeline: the eye is scanned by optical coherence tomography; each volume yields 49 cross-sectional B-scans; a RETFound ViT-L encoder with sixteen sigmoid heads detects sixteen retinal biomarkers; the biomarkers group into four classes that each answer one clinical question. Trained on 9,408 expert-annotated scans from 87 patients and applied to 143,607 previously unlabelled scans.</desc>
+
+<defs>
+  <!-- greyscale OCT B-scan, drawn in a 200 x 150 space -->
+  <g id="bscan">
+    <rect x="0" y="0" width="200" height="150" fill="#0F0F0F"/>
+    <rect x="0" y="127" width="200" height="23" fill="#5C5C5C"/>
+    <rect x="0" y="120" width="200" height="7" fill="#EDEDED"/>
+    <rect x="0" y="113" width="200" height="7" fill="#474747"/>
+    <rect x="0" y="108" width="200" height="5" fill="#D8D8D8"/>
+    <rect x="0" y="78" width="200" height="30" fill="#343434"/>
+    <path d="M0,44 L46,44 C70,44 74,74 100,74 C126,74 130,44 154,44 L200,44 L200,78 L152,78 C130,78 124,76 100,76 C76,76 70,78 48,78 L0,78 Z" fill="#6E6E6E"/>
+    <path d="M0,78 L48,78 C70,78 76,76 100,76 C124,76 130,78 152,78 L200,78" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+    <path d="M0,44 L46,44 C70,44 74,74 100,74 C126,74 130,44 154,44 L200,44" fill="none" stroke="#C8C8C8" stroke-width="1.6"/>
+    <rect x="0" y="106" width="200" height="1.4" fill="#A0A0A0"/>
+  </g>
+  <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+    <path d="M0,1 L9,5 L0,9 Z" fill="#1A1A1A"/>
+  </marker>
+  <marker id="arS" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+    <path d="M0,1.5 L9,5 L0,8.5 Z" fill="#4D4D4D"/>
+  </marker>
+  <marker id="arB" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">
+    <path d="M0,1.5 L9,5 L0,8.5 Z" fill="#2a78d6"/>
+  </marker>
+</defs>
+
+<rect x="0" y="0" width="510" height="408" fill="#FFFFFF"/>
+
+<!-- ================= PANEL A : the eye ================= -->
+<text x="6" y="20" font-size="9.5" font-weight="bold" fill="#1A1A1A">A</text>
+<text x="18" y="20" font-size="8" fill="#1A1A1A">The eye</text>
+
+<text x="47" y="46" font-size="6.5" fill="#2a78d6" text-anchor="middle">OCT beam</text>
+<line x1="14" y1="88" x2="68" y2="88" stroke="#2a78d6" stroke-width="1.1" stroke-dasharray="3 2" marker-end="url(#arB)"/>
+
+<circle cx="52" cy="88" r="26" fill="#FAFAFA" stroke="#4D4D4D" stroke-width="1.1"/>
+<path d="M31,72 C21,77 21,99 31,104" fill="#FFFFFF" stroke="#4D4D4D" stroke-width="1.1"/>
+<ellipse cx="35" cy="88" rx="4.5" ry="10" fill="#EFEFEF" stroke="#4D4D4D" stroke-width="1"/>
+<path d="M52,63 A25,25 0 0 1 52,113" fill="none" stroke="#1A1A1A" stroke-width="2.4"/>
+<path d="M68,100 L80,108" stroke="#4D4D4D" stroke-width="3"/>
+<circle cx="77" cy="88" r="3" fill="#2a78d6"/>
+<line x1="77" y1="88" x2="86" y2="74" stroke="#4D4D4D" stroke-width=".7"/>
+<text x="86" y="71" font-size="6.5" fill="#1A1A1A">macula</text>
+<text x="52" y="126" font-size="6" fill="#4D4D4D" text-anchor="middle">retina shown bold</text>
+
+<line x1="90" y1="88" x2="101" y2="88" stroke="#1A1A1A" stroke-width="1.2" marker-end="url(#ar)"/>
+
+<!-- ================= PANEL B : volume ================= -->
+<text x="104" y="20" font-size="9.5" font-weight="bold" fill="#1A1A1A">B</text>
+<text x="116" y="20" font-size="8" fill="#1A1A1A">Acquire volume</text>
+
+<g stroke="#4D4D4D" stroke-width=".7">
+  <g transform="translate(0,0)">
+    <polygon points="112,108 168,108 182,94 126,94" fill="#D9D9D9"/>
+    <polygon points="112,101 168,101 182,87 126,87" fill="#C2C2C2"/>
+    <polygon points="112,94 168,94 182,80 126,80" fill="#ABABAB"/>
+    <polygon points="112,87 168,87 182,73 126,73" fill="#949494"/>
+    <polygon points="112,80 168,80 182,66 126,66" fill="#7D7D7D"/>
+  </g>
+</g>
+<g transform="translate(112,44) scale(0.35,0.147)"><use href="#bscan"/></g>
+<rect x="112" y="44" width="70" height="22" fill="none" stroke="#1A1A1A" stroke-width="1"/>
+
+<text x="147" y="122" font-size="6.5" fill="#1A1A1A" text-anchor="middle">49 B-scans per volume</text>
+<text x="147" y="131" font-size="6" fill="#4D4D4D" text-anchor="middle">Heidelberg Spectralis</text>
+<text x="147" y="139" font-size="6" fill="#4D4D4D" text-anchor="middle">504 &#215; 496 px, 8-bit</text>
+
+<line x1="188" y1="88" x2="199" y2="88" stroke="#1A1A1A" stroke-width="1.2" marker-end="url(#ar)"/>
+
+<!-- ================= PANEL C : one B-scan ================= -->
+<text x="202" y="20" font-size="9.5" font-weight="bold" fill="#1A1A1A">C</text>
+<text x="214" y="20" font-size="8" fill="#1A1A1A">One cross-section</text>
+
+<g transform="translate(204,50) scale(0.47,0.44)"><use href="#bscan"/></g>
+<rect x="204" y="50" width="94" height="66" fill="none" stroke="#1A1A1A" stroke-width="1"/>
+
+<g font-size="5.5" font-weight="bold" text-anchor="middle">
+  <circle cx="232" cy="60" r="5" fill="#FFFFFF" stroke="#1A1A1A" stroke-width=".8"/><text x="232" y="62" fill="#1A1A1A">1</text>
+  <circle cx="222" cy="77" r="5" fill="#FFFFFF" stroke="#1A1A1A" stroke-width=".8"/><text x="222" y="79" fill="#1A1A1A">2</text>
+  <circle cx="268" cy="98" r="5" fill="#FFFFFF" stroke="#1A1A1A" stroke-width=".8"/><text x="268" y="100" fill="#1A1A1A">3</text>
+  <circle cx="246" cy="107" r="5" fill="#FFFFFF" stroke="#1A1A1A" stroke-width=".8"/><text x="246" y="109" fill="#1A1A1A">4</text>
+</g>
+<text x="251" y="90" font-size="5.5" fill="#FFFFFF" text-anchor="middle">fovea</text>
+
+<text x="204" y="126" font-size="6" fill="#1A1A1A"><tspan font-weight="bold">1</tspan> vitreous gel  <tspan font-weight="bold">2</tspan> inner retina</text>
+<text x="204" y="135" font-size="6" fill="#1A1A1A"><tspan font-weight="bold">3</tspan> photoreceptors  <tspan font-weight="bold">4</tspan> support layer</text>
+
+<line x1="302" y1="88" x2="313" y2="88" stroke="#1A1A1A" stroke-width="1.2" marker-end="url(#ar)"/>
+
+<!-- ================= PANEL D : model ================= -->
+<text x="318" y="20" font-size="9.5" font-weight="bold" fill="#1A1A1A">D</text>
+<text x="330" y="20" font-size="8" fill="#1A1A1A">Detect biomarkers</text>
+
+<rect x="318" y="46" width="72" height="34" rx="2" fill="#F5F5F5" stroke="#1A1A1A" stroke-width="1"/>
+<text x="354" y="59" font-size="6.5" font-weight="bold" fill="#1A1A1A" text-anchor="middle">RETFound ViT-L/16</text>
+<text x="354" y="68" font-size="6" fill="#4D4D4D" text-anchor="middle">303M parameters</text>
+<text x="354" y="76" font-size="6" fill="#4D4D4D" text-anchor="middle">retinal pre-training</text>
+
+<line x1="392" y1="63" x2="404" y2="63" stroke="#4D4D4D" stroke-width="1" marker-end="url(#arS)"/>
+
+<text x="432" y="41" font-size="6" fill="#1A1A1A" text-anchor="middle">16 sigmoid heads</text>
+<g stroke-width="1">
+  <g fill="#2a78d6" stroke="#2a78d6">
+    <rect x="408" y="46" width="9" height="9"/><rect x="420" y="46" width="9" height="9"/>
+    <rect x="432" y="46" width="9" height="9"/><rect x="444" y="46" width="9" height="9" fill="#FFFFFF"/>
+  </g>
+  <g fill="#eb6834" stroke="#eb6834">
+    <rect x="408" y="58" width="9" height="9"/><rect x="420" y="58" width="9" height="9"/>
+    <rect x="432" y="58" width="9" height="9" fill="#FFFFFF"/><rect x="444" y="58" width="9" height="9" fill="#FFFFFF"/>
+  </g>
+  <g fill="#1baf7a" stroke="#1baf7a">
+    <rect x="408" y="70" width="9" height="9"/><rect x="420" y="70" width="9" height="9"/>
+    <rect x="432" y="70" width="9" height="9"/><rect x="444" y="70" width="9" height="9" fill="#FFFFFF"/>
+  </g>
+  <g fill="#4a3aa7" stroke="#4a3aa7">
+    <rect x="408" y="82" width="9" height="9"/><rect x="420" y="82" width="9" height="9"/>
+    <rect x="432" y="82" width="9" height="9"/><rect x="444" y="82" width="9" height="9"/>
+  </g>
+</g>
+<g font-size="5.5" fill="#4D4D4D">
+  <rect x="462" y="47" width="7" height="7" fill="#808080" stroke="#808080" stroke-width="1"/>
+  <text x="473" y="53" fill="#1A1A1A">12 emitted</text>
+  <rect x="462" y="58" width="7" height="7" fill="#FFFFFF" stroke="#808080" stroke-width="1"/>
+  <text x="473" y="64" fill="#1A1A1A">4 withheld</text>
+</g>
+
+<g font-size="6.5">
+  <text x="318" y="100" fill="#1A1A1A"><tspan font-weight="bold">Trained</tspan> 9,408 expert-annotated scans &#183; 87 patients</text>
+  <text x="318" y="110" fill="#1A1A1A"><tspan font-weight="bold">Validated</tspan> 5-fold patient-grouped, zero patient overlap</text>
+  <text x="318" y="120" fill="#1A1A1A"><tspan font-weight="bold">Applied</tspan> 143,607 previously unlabelled scans</text>
+  <text x="318" y="130" fill="#1A1A1A"><tspan font-weight="bold">Performance</tspan> mean AUROC 0.8916 &#177; 0.0360 (12 biomarkers)</text>
+</g>
+
+<line x1="6" y1="150" x2="504" y2="150" stroke="#CCCCCC" stroke-width=".8"/>
+
+<!-- ================= PANEL E : biomarkers to meaning ================= -->
+<text x="6" y="166" font-size="9.5" font-weight="bold" fill="#1A1A1A">E</text>
+<text x="18" y="166" font-size="8" fill="#1A1A1A">Each biomarker class answers one clinical question</text>
+
+<!-- block 1 -->
+<rect x="6" y="176" width="243" height="70" fill="#FFFFFF" stroke="#CCCCCC" stroke-width=".8"/>
+<rect x="6" y="176" width="243" height="3" fill="#2a78d6"/>
+<text x="13" y="192" font-size="7.5" font-weight="bold" fill="#2a78d6">Exudative &#8212; fluid where it should not be</text>
+<g font-size="6.3" fill="#1A1A1A">
+  <text x="13" y="204">Intraretinal fluid</text><text x="13" y="214">Subretinal fluid</text>
+  <text x="124" y="204">Macular oedema</text><text x="124" y="214">Serous PED *</text>
+</g>
+<line x1="13" y1="222" x2="22" y2="222" stroke="#2a78d6" stroke-width="1.4"/>
+<text x="13" y="236" font-size="7" font-style="italic" fill="#1A1A1A">Should this eye be treated now?</text>
+
+<!-- block 2 -->
+<rect x="261" y="176" width="243" height="70" fill="#FFFFFF" stroke="#CCCCCC" stroke-width=".8"/>
+<rect x="261" y="176" width="243" height="3" fill="#eb6834"/>
+<text x="268" y="192" font-size="7.5" font-weight="bold" fill="#eb6834">Irreversible loss &#8212; tissue damaged or gone</text>
+<g font-size="6.3" fill="#1A1A1A">
+  <text x="268" y="204">Photoreceptor (EZ) disruption</text><text x="268" y="214">Retinal thinning / atrophy</text>
+  <text x="396" y="204">DRIL *</text><text x="396" y="214">RPE disruption *</text>
+</g>
+<line x1="268" y1="222" x2="277" y2="222" stroke="#eb6834" stroke-width="1.4"/>
+<text x="268" y="236" font-size="7" font-style="italic" fill="#1A1A1A">How much sight can realistically return?</text>
+
+<!-- block 3 -->
+<rect x="6" y="252" width="243" height="70" fill="#FFFFFF" stroke="#CCCCCC" stroke-width=".8"/>
+<rect x="6" y="252" width="243" height="3" fill="#1baf7a"/>
+<text x="13" y="268" font-size="7.5" font-weight="bold" fill="#13875f">Mechanical &#8212; the gel pulling on the retina</text>
+<g font-size="6.3" fill="#1A1A1A">
+  <text x="13" y="280">Vitreomacular traction *</text><text x="13" y="290">Partly attached vitreous</text>
+  <text x="124" y="280">Fully attached vitreous</text><text x="124" y="290">Vitreous debris</text>
+</g>
+<line x1="13" y1="298" x2="22" y2="298" stroke="#1baf7a" stroke-width="1.4"/>
+<text x="13" y="312" font-size="7" font-style="italic" fill="#1A1A1A">Will a drug work, or is surgery needed?</text>
+
+<!-- block 4 -->
+<rect x="261" y="252" width="243" height="70" fill="#FFFFFF" stroke="#CCCCCC" stroke-width=".8"/>
+<rect x="261" y="252" width="243" height="3" fill="#4a3aa7"/>
+<text x="268" y="268" font-size="7.5" font-weight="bold" fill="#4a3aa7">Activity &#8212; inflammation and new vessels</text>
+<g font-size="6.3" fill="#1A1A1A">
+  <text x="268" y="280">Hyperreflective foci</text><text x="268" y="290">Intraretinal haemorrhage</text>
+  <text x="396" y="280">Preretinal tissue</text><text x="396" y="290">Subretinal material</text>
+</g>
+<line x1="268" y1="298" x2="277" y2="298" stroke="#4a3aa7" stroke-width="1.4"/>
+<text x="268" y="312" font-size="7" font-style="italic" fill="#1A1A1A">How urgent, and how often to treat?</text>
+
+<text x="6" y="334" font-size="6" fill="#4D4D4D">* Withheld: positives came from only 1&#8211;5 patients, so the class cannot be validated under a patient-grouped split; no value is emitted.</text>
+
+<line x1="6" y1="344" x2="504" y2="344" stroke="#CCCCCC" stroke-width=".8"/>
+
+<!-- ================= PANEL F : significance ================= -->
+<text x="6" y="360" font-size="9.5" font-weight="bold" fill="#1A1A1A">F</text>
+<text x="18" y="360" font-size="8" fill="#1A1A1A">What this adds</text>
+
+<g>
+  <text x="6" y="380" font-size="15" font-weight="bold" fill="#2a78d6">16&#215;</text>
+  <text x="6" y="390" font-size="6.2" fill="#1A1A1A">labelled corpus expanded</text>
+  <text x="6" y="398" font-size="6.2" fill="#4D4D4D">9,408 expert &#8594; 153,045 scans</text>
+
+  <line x1="128" y1="366" x2="128" y2="400" stroke="#CCCCCC" stroke-width=".8"/>
+  <text x="140" y="380" font-size="15" font-weight="bold" fill="#2a78d6">5/12</text>
+  <text x="140" y="390" font-size="6.2" fill="#1A1A1A">biomarkers reliable enough to use</text>
+  <text x="140" y="398" font-size="6.2" fill="#4D4D4D">the fluid and oedema findings &#8212; also the actionable ones</text>
+
+  <line x1="330" y1="366" x2="330" y2="400" stroke="#CCCCCC" stroke-width=".8"/>
+  <text x="342" y="380" font-size="15" font-weight="bold" fill="#eb6834">87</text>
+  <text x="342" y="390" font-size="6.2" fill="#1A1A1A">patients &#8212; the binding constraint</text>
+  <text x="342" y="398" font-size="6.2" fill="#4D4D4D">annotation breadth, not model scale, is the limit</text>
+</g>
+</svg>
