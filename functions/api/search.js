@@ -38,6 +38,7 @@ async function handle({ request, env }) {
     const page = Math.max(parseInt(url.searchParams.get("page")) || 1, 1);
     const order = SORTS[url.searchParams.get("sort")] || SORTS.relevant;
     const wantFacets = url.searchParams.get("facets") !== "0";
+    const debug = url.searchParams.get("debug") === "1" ? {} : null;
 
     const rowsQ = env.DB.prepare(
       `SELECT i.id, i.trial, i.arm, i.subject, i.visit, i.eye, i.scan_index,
@@ -53,11 +54,13 @@ async function handle({ request, env }) {
         env.DB.prepare("SELECT payload FROM facets_global WHERE id=1").first(),
       ]);
       const f = JSON.parse(g.payload);
+      auditRows(rows.meta, "results_default_sort", debug);
       return json({
         total: f.total,                  // always present: the pager depends on it
         page, per_page: per,
         results: rows.results,
         facets: wantFacets ? shape(f) : null,
+        ...(debug ? { _rows_read: debug } : {}),
       }, 3600);
     }
 
@@ -80,9 +83,11 @@ async function handle({ request, env }) {
       );
     }
     const [countRow, rows, fTrial, fEye, fVisit, fBio] = await Promise.all(tasks);
+    auditRows(rows.meta, "results_filtered", debug);
 
     return json({
       total: countRow.n,
+      ...(debug ? { _rows_read: debug } : {}),
       page, per_page: per,
       results: rows.results,
       facets: wantFacets ? {
@@ -123,6 +128,24 @@ function shape(f) {
  * stale copy. `s-maxage` still lets the edge serve repeats, which is what
  * keeps D1 row reads down.
  */
+/* The default sort depends on idx_img_sort_default. That index was added
+   straight to D1 once and vanished when the table was rebuilt from a dump that
+   did not carry it — and nothing failed, queries simply went back to reading
+   all 153,045 rows, which burns D1's daily free allowance in ~32 page views.
+   D1 reports rows_read per query, so make the regression loud: warn in the
+   logs, and expose the counts behind ?debug=1 so one curl can check. */
+const EXPECTED_MAX_ROWS = 500;
+
+function auditRows(meta, label, debug) {
+  const read = meta && typeof meta.rows_read === "number" ? meta.rows_read : null;
+  if (read !== null && read > EXPECTED_MAX_ROWS) {
+    console.warn(`[d1] ${label} read ${read} rows, expected <= ${EXPECTED_MAX_ROWS}. ` +
+      `idx_img_sort_default may be missing - apply scripts/migrations/001_sort_default_index.sql`);
+  }
+  if (debug) debug[label] = read;
+  return read;
+}
+
 function json(body, maxAge) {
   return Response.json(body, {
     headers: {

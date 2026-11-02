@@ -136,3 +136,47 @@ git diff --cached --name-only     # confirm nothing sensitive is staged
 | New subdomain won't resolve locally but works elsewhere | Cached NXDOMAIN — this zone's negative TTL is 1800s. Check `dig @amit.ns.cloudflare.com +short <host>` before debugging further. |
 | Pages domain stuck `status=pending` but site serves fine | Validation is async and lags. Trust the HTTP response. |
 | `HTTP 522` right after attaching a domain | Certificate still issuing. Resolves on its own in a few minutes. |
+
+## D1 row reads — the failure that looks like nothing
+
+The atlas runs on D1's free tier: **5 million row reads per day, account-wide**
+(not per database, so a second database does not help), and 100,000 row writes.
+
+`SORTS.relevant` orders by `has_biomarkers DESC, biomarker_count DESC, id`.
+With `idx_img_sort_default` that returns 24 rows read. Without it, SQLite scans
+and sorts all 153,045 rows **on every page load** — about 32 page views to
+exhaust the day. Nothing errors; the site simply dies later with
+`D1_ERROR: ... exceeded ... daily row read limit` and stays dead until
+midnight UTC.
+
+This has happened once. Commit 976571d added the index straight to D1 and it was
+never written into `build_olives_index.py` or the `olives_d1.sql` dump, so
+rebuilding the table to take the corpus from 78,283 to 153,045 rows silently
+dropped it.
+
+**Three guards now:**
+
+| guard | where |
+|---|---|
+| the index is in the builder | `scripts/build_olives_index.py` |
+| a repair for a live database | `scripts/migrations/001_sort_default_index.sql` |
+| the dump carries it if replayed | `~/oct-data/olives_d1.sql` |
+
+**After any rebuild or import, check it:**
+
+```bash
+./scripts/check_schema.sh                      # needs a token with D1 read
+curl -s 'https://retinaoct.com/api/search?debug=1&v=2' | grep -o '"_rows_read":[^}]*}'
+```
+
+`results_default_sort` should read ~24. Thousands means the index is gone. The
+Worker also logs a warning above 500 rows, visible in `wrangler pages tail`.
+
+**Note on tokens:** `retinaoct-deploy` has no D1 permission and returns API code
+7403. Use `CLOUDFLARE_API_TOKEN= npx wrangler ...` to fall back to `wrangler
+login`, since the env token overrides it.
+
+**If the allowance is already spent:** waiting for midnight UTC and upgrading to
+Workers Paid are the only options. Creating a fresh database does not work —
+the read limit is account-wide, and importing 153,045 rows would exceed the
+100,000 daily write limit anyway.
