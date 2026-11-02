@@ -166,6 +166,13 @@ def main():
     CREATE INDEX idx_img_hasbio ON images(has_biomarkers);
     CREATE INDEX idx_img_bcva ON images(bcva);
     CREATE INDEX idx_img_cst ON images(cst);
+    -- The default sort. Without this, returning 24 rows means scanning and
+    -- sorting all 153,045 — measured at 156,566 row reads per page load, which
+    -- exhausts D1's free daily allowance in about 32 page views. It was added
+    -- directly to D1 once and lost when the table was rebuilt from the dump,
+    -- so it lives here now. Column directions must match the ORDER BY in
+    -- functions/api/search.js (SORTS.relevant) or the index will not be used.
+    CREATE INDEX idx_img_sort_default ON images(has_biomarkers DESC, biomarker_count DESC, id ASC);
     """)
     db.commit()
 
