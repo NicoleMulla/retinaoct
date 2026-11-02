@@ -6,5 +6,6 @@ node_modules/
 .wrangler/
 *.db
 *.sql
+!scripts/migrations/*.sql   # schema repairs must be in the repo; the big dumps must not
 __pycache__/
 *.pyc
