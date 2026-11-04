@@ -1,0 +1,15 @@
+-- CONDITIONAL. Apply only if the audit shows biomarker_conf reading many rows:
+--
+--   curl -s 'https://retinaoct.com/api/image/25792?debug=1&v=2' \
+--     | python3 -c 'import sys,json;print(json.load(sys.stdin).get("_rows_read"))'
+--
+-- Expected healthy output: {"biomarkers": 1, "biomarker_conf": 1, "siblings": <~12-60>}
+-- A biomarker_conf figure in the tens of thousands means image_id is not the
+-- primary key there and every model-labelled detail view scans the table.
+--
+-- biomarker_conf was created directly against D1 during the inference work and
+-- its schema exists nowhere in this repo, so whether this index is needed can
+-- only be answered by measuring. Safe either way: if image_id is already an
+-- INTEGER PRIMARY KEY the index is redundant, costs a little space, and
+-- changes nothing.
+CREATE INDEX IF NOT EXISTS idx_bconf_image ON biomarker_conf(image_id);
