@@ -128,8 +128,14 @@ async function handle({ params, env, request }) {
     ...(debug ? { _rows_read: debug } : {}),
   });
   } catch (err) {
-    return Response.json({ error: "lookup failed", detail: String(err && err.message || err) },
-                         { status: 500 });
+    // Report an exhausted daily allowance as its own thing, the way
+    // /api/search does. It used to surface as a bare "Could not load image",
+    // which says nothing about what is wrong or that it clears by itself.
+    const msg = String(err && err.message || err);
+    const quota = msg.includes("row read limit");
+    return Response.json(
+      { error: quota ? "quota" : "lookup failed", detail: msg },
+      { status: quota ? 503 : 500 });
   }
 }
 

@@ -188,10 +188,21 @@ function toggle(key,val){
   state.page=1; load();
 }
 
+// The API returns {error:"quota"} with a 503 when the database's daily read
+// allowance is spent. That is temporary and clears at midnight UTC, so say so
+// rather than showing a bare status code or "could not load".
+async function errText(r, fallback){
+  let kind="";
+  try{ kind=(await r.clone().json()).error||""; }catch(e){}
+  if(kind==="quota") return `The image database has hit its daily query limit. `
+    + `It resets at midnight UTC — please try again then. Browsing already-loaded pages still works.`;
+  return fallback || `Search failed (${r.status}).`;
+}
+
 async function load(opts={}){
   $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Loading…</div>`;
   const r=await fetch("/api/search?"+qs(opts));
-  if(!r.ok){ $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Search failed (${r.status}).</div>`; return; }
+  if(!r.ok){ $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">${await errText(r)}</div>`; return; }
   const d=await r.json();
   render(d); if(d.facets) renderFacets(d.facets,d.total);
 }
@@ -393,7 +404,7 @@ function modelFoot(m){
 
   if(isMobile()) openSheet($("#detail"));
   const r=await fetch("/api/image/"+id+"?v="+API_V);
-  if(!r.ok){ d.innerHTML=`<div class="empty">Could not load image ${id}.</div>`; return; }
+  if(!r.ok){ d.innerHTML=`<div class="empty">${await errText(r, `Could not load image ${id}.`)}</div>`; return; }
   const m=await r.json();
   const u=imgUrl(m.full_key);
   const row=(icon,k,v)=>v==null||v===""?"":`<div class="row">${icon}<span class="k">${k}</span><span class="v">${v}</span></div>`;
