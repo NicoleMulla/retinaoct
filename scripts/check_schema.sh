@@ -32,7 +32,7 @@ unindexed = d.get("tables_filtering_image_id_without_an_index") or []
 
 for t in ("table", "index"):
     names = sorted(r["name"] for r in d["schema"] if r["type"] == t)
-    print(f"  {len(names)} {t}s: {', '.join(names)}")
+    print(f"  {len(names)} {t + ('s' if t == 'table' else 'es')}: {', '.join(names)}")
 print()
 for m in missing:
     print(f"  MISSING INDEX  {m}")

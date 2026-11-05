@@ -33,11 +33,15 @@ async function handle({ request, env }) {
     const needBioJoin = /\bb\./.test(where);
     // INNER, not LEFT. Every biomarker predicate buildFilter emits is
     // `b.<col> = 1`, which discards unmatched rows anyway, so the two are
-    // semantically identical here -- but a LEFT JOIN forces SQLite to drive
-    // from `images` and visit all 153,045 rows plus the joined row for each.
-    // Measured cost of one such filtered search: 153k-306k row reads, so ~20
-    // of them exhausted the 5M/day allowance. An INNER JOIN lets the planner
-    // start from the matching biomarker rows instead.
+    // semantically identical here and this states the intent plainly.
+    //
+    // It is NOT the fix for the row-read problem, though an earlier commit
+    // message claimed it was: EXPLAIN QUERY PLAN gives byte-identical plans
+    // either way, because SQLite recognises that a strict WHERE on the right
+    // table makes a LEFT JOIN inner and rewrites it. Measured cost was
+    // unchanged at 1,293,782 rows for a `bio=drt_me` search. What actually
+    // reduced it was collapsing the four facet scans into one (below) and,
+    // once applied, the partial indexes in migration 003.
     const join = needBioJoin ? "JOIN biomarkers b ON b.image_id = i.id" : "";
     const base = `FROM images i ${join} ${where}`;
 

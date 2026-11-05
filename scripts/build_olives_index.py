@@ -173,6 +173,29 @@ def main():
     -- so it lives here now. Column directions must match the ORDER BY in
     -- functions/api/search.js (SORTS.relevant) or the index will not be used.
     CREATE INDEX idx_img_sort_default ON images(has_biomarkers DESC, biomarker_count DESC, id ASC);
+
+    -- Biomarker filters. `biomarkers` had no secondary index at all, so
+    -- `WHERE b.drt_me = 1` read all 153,046 rows; measured at 1,293,782 row
+    -- reads for one faceted search, which emptied the daily allowance in about
+    -- four searches. Partial indexes store only the rows where the flag is
+    -- set, so each costs its positive count rather than a full table.
+    --
+    -- Only the selective flags are indexed. The five present in 32-68% of the
+    -- table (vitreous_partial, fluid_irf, vitreous_debris, vitreous_full,
+    -- ir_hrf) would cost 361,932 index entries to save SQLite from visiting a
+    -- third to two-thirds of the rows anyway. See
+    -- scripts/migrations/003_biomarker_flag_indexes.sql for the counts.
+    CREATE INDEX idx_bm_ped_serous        ON biomarkers(image_id) WHERE ped_serous = 1;
+    CREATE INDEX idx_bm_rpe_disruption    ON biomarkers(image_id) WHERE rpe_disruption = 1;
+    CREATE INDEX idx_bm_vmt               ON biomarkers(image_id) WHERE vmt = 1;
+    CREATE INDEX idx_bm_dril              ON biomarkers(image_id) WHERE dril = 1;
+    CREATE INDEX idx_bm_atrophy_thinning  ON biomarkers(image_id) WHERE atrophy_thinning = 1;
+    CREATE INDEX idx_bm_shrm              ON biomarkers(image_id) WHERE shrm = 1;
+    CREATE INDEX idx_bm_fluid_srf         ON biomarkers(image_id) WHERE fluid_srf = 1;
+    CREATE INDEX idx_bm_ir_hemorrhages    ON biomarkers(image_id) WHERE ir_hemorrhages = 1;
+    CREATE INDEX idx_bm_ez_disruption     ON biomarkers(image_id) WHERE ez_disruption = 1;
+    CREATE INDEX idx_bm_preretinal_tissue ON biomarkers(image_id) WHERE preretinal_tissue = 1;
+    CREATE INDEX idx_bm_drt_me            ON biomarkers(image_id) WHERE drt_me = 1;
     """)
     db.commit()
 

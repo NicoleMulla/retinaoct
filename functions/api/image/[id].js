@@ -85,9 +85,20 @@ async function handle({ params, env, request }) {
     };
   });
 
+  // No ORDER BY, deliberately. `ORDER BY visit, scan_index` is not covered by
+  // idx_img_eyeid, so SQLite had to read every scan of the eye - 980 rows for
+  // image 25792, 2,156 for image 1 - sort them, and keep 8. Dropping it lets
+  // the index satisfy the LIMIT directly, which is ~9 rows.
+  //
+  // A composite index on (eye_id, visit, scan_index) would also fix it, but it
+  // would add 153,045 index entries, and D1's free tier allows 100,000 row
+  // WRITES per day. This costs nothing and the rows come back in index order,
+  // which means consecutive scans of that eye - exactly what the "Other scans
+  // of this eye" strip shows. Only the starting point differs from before, and
+  // only for eyes whose scans were imported in two passes.
   const siblings = img.eye_id != null ? audit(await env.DB.prepare(
     `SELECT id, visit, scan_index, thumb_key, biomarker_count, label_source
-     FROM images WHERE eye_id = ? AND id != ? ORDER BY visit, scan_index LIMIT 8`
+     FROM images WHERE eye_id = ? AND id != ? LIMIT 8`
   ).bind(img.eye_id, id).all(), "siblings", debug) : { results: [] };
 
   return json({

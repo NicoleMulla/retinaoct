@@ -13,15 +13,23 @@
 // research dataset, already mirrored in scripts/sql/. No rows, no patient
 // data, no secrets.
 
+// Only indexes the query paths actually depend on, so that a failure here
+// always means something real. Every one is created by
+// scripts/build_olives_index.py, which is what a rebuild runs.
 const REQUIRED_INDEXES = {
   images: ["idx_img_trial", "idx_img_eye", "idx_img_patient", "idx_img_eyeid",
            "idx_img_visit", "idx_img_hasbio", "idx_img_bcva", "idx_img_cst",
-           "idx_img_sort_default", "idx_img_eye_seq",
-           "idx_img_trial_rank", "idx_img_eye_rank", "idx_img_visit_rank",
-           "idx_img_source_rank"],
-  // Partial indexes, one per biomarker flag. Without them a filtered search
-  // reads all 153,046 biomarker rows; see migration 003.
-  biomarkers: ["idx_bm_atrophy_thinning", "idx_bm_ez_disruption", "idx_bm_dril", "idx_bm_ir_hemorrhages", "idx_bm_ir_hrf", "idx_bm_vitreous_partial", "idx_bm_vitreous_full", "idx_bm_preretinal_tissue", "idx_bm_vitreous_debris", "idx_bm_vmt", "idx_bm_drt_me", "idx_bm_fluid_irf", "idx_bm_fluid_srf", "idx_bm_rpe_disruption", "idx_bm_ped_serous", "idx_bm_shrm"],
+           "idx_img_sort_default"],
+  // Partial indexes on the selective biomarker flags. Without them a filtered
+  // search reads all 153,046 biomarker rows. The five flags present in 32-68%
+  // of the table are deliberately unindexed -- an index saves little there and
+  // costs more write quota than a day allows. See migration 003 for the
+  // arithmetic.
+  biomarkers: ["idx_bm_ped_serous", "idx_bm_rpe_disruption", "idx_bm_vmt",
+               "idx_bm_dril", "idx_bm_atrophy_thinning", "idx_bm_shrm",
+               "idx_bm_fluid_srf", "idx_bm_ir_hemorrhages",
+               "idx_bm_ez_disruption", "idx_bm_preretinal_tissue",
+               "idx_bm_drt_me"],
 };
 
 export async function onRequest({ env }) {

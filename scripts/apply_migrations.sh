@@ -19,6 +19,14 @@
 #
 # Every statement is CREATE INDEX IF NOT EXISTS, so re-running is harmless.
 # Afterwards verify with ./scripts/check_schema.sh
+#
+# On the write budget. Building an index writes one entry per matching row, and
+# D1's free tier allows 100,000 row WRITES per day. The statements here are all
+# partial indexes totalling 81,299 entries, so they apply inside one day. Do
+# not add a full index on `images` to this directory: that is 153,045 entries,
+# more than a day's budget for a single index. Such indexes belong in
+# scripts/build_olives_index.py, where they are created during the bulk load --
+# see scripts/migrations/deferred/004_filtered_sort_indexes.sql.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DB="${D1_NAME:-retinaoct-olives}"
