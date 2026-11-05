@@ -3,9 +3,15 @@ import { BIOMARKERS, MODEL_BIOMARKERS } from "../_lib.js";
 /* D1 reports rows_read per query. The default-sort index was lost once and
    nobody noticed until the daily allowance ran out, so every D1 consumer now
    accounts for itself: ?debug=1 returns the per-query counts and anything
-   reading more than a handful is logged. `biomarker_conf` is the table to
-   watch — its schema was created straight against D1 and exists nowhere in
-   this repo, so whether image_id is indexed there is currently unknown. */
+   reading more than a handful is logged.
+
+   Measured 2026-11-05: biomarkers 1, biomarker_conf 1, siblings 980-2156.
+   The siblings query was the leak. `idx_img_eyeid` covers the eye_id lookup,
+   but the ORDER BY visit, scan_index is not in that index, so SQLite had to
+   read every scan belonging to the eye - up to ~2,100 of them - sort the lot,
+   and discard all but 12. idx_img_eye_seq(eye_id, visit, scan_index) returns
+   them already ordered so LIMIT 12 stops after 13 rows.
+   See scripts/migrations/002_eye_sequence_index.sql. */
 const ROW_BUDGET = 200;
 
 function audit(res, label, debug) {
@@ -17,7 +23,21 @@ function audit(res, label, debug) {
   return res;
 }
 
-export async function onRequestGet({ params, env, request }) {
+export async function onRequestGet(ctx) {
+  const { request, waitUntil } = ctx;
+
+  // The dataset is static, so a detail response is good for a long time.
+  // Without this every one of the 153,045 image pages hit D1 on every view.
+  const cache = caches.default;
+  const hit = await cache.match(request);
+  if (hit) return hit;
+
+  const res = await handle(ctx);
+  if (res.status === 200) waitUntil(cache.put(request, res.clone()));
+  return res;
+}
+
+async function handle({ params, env, request }) {
   try {
   const debug = new URL(request.url).searchParams.get("debug") === "1" ? {} : null;
   const id = parseInt(params.id);
@@ -69,7 +89,7 @@ export async function onRequestGet({ params, env, request }) {
      FROM images WHERE eye_id = ? AND id != ? ORDER BY visit, scan_index LIMIT 12`
   ).bind(img.eye_id, id).all(), "siblings", debug) : { results: [] };
 
-  return Response.json({
+  return json({
     ...img,
     biomarkers,
     has_labels: !!bio,
@@ -99,4 +119,13 @@ export async function onRequestGet({ params, env, request }) {
     return Response.json({ error: "lookup failed", detail: String(err && err.message || err) },
                          { status: 500 });
   }
+}
+
+function json(body) {
+  return Response.json(body, {
+    headers: {
+      "cache-control": "public, max-age=0, must-revalidate, s-maxage=86400, stale-while-revalidate=604800",
+      "vary": "accept-encoding",
+    },
+  });
 }

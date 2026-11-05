@@ -31,7 +31,14 @@ async function handle({ request, env }) {
     const { sql: where, bind } = buildFilter(url);
     const filtered = where !== "";
     const needBioJoin = /\bb\./.test(where);
-    const join = needBioJoin ? "LEFT JOIN biomarkers b ON b.image_id = i.id" : "";
+    // INNER, not LEFT. Every biomarker predicate buildFilter emits is
+    // `b.<col> = 1`, which discards unmatched rows anyway, so the two are
+    // semantically identical here -- but a LEFT JOIN forces SQLite to drive
+    // from `images` and visit all 153,045 rows plus the joined row for each.
+    // Measured cost of one such filtered search: 153k-306k row reads, so ~20
+    // of them exhausted the 5M/day allowance. An INNER JOIN lets the planner
+    // start from the matching biomarker rows instead.
+    const join = needBioJoin ? "JOIN biomarkers b ON b.image_id = i.id" : "";
     const base = `FROM images i ${join} ${where}`;
 
     const per = Math.min(parseInt(url.searchParams.get("per_page")) || 24, 100);
@@ -65,41 +72,66 @@ async function handle({ request, env }) {
     }
 
     // ---- filtered: compute against the matching subset ----
+    // One pass, not four. COUNT(*) and the trial/eye/visit facets were four
+    // separate queries over the same subset, each scanning it end to end
+    // (measured: 187,706 + 306,092 + 306,092 + 306,138 row reads for a single
+    // `bio=drt_me` search). Grouping by all three dimensions at once returns a
+    // few dozen rows -- every distinct trial/eye/visit combination in the
+    // subset -- from which each facet and the total are derived in JS below.
     const tasks = [
-      env.DB.prepare(`SELECT COUNT(*) AS n ${base}`).bind(...bind).first(),
+      env.DB.prepare(
+        `SELECT i.trial AS trial, i.eye AS eye, i.visit AS visit, COUNT(*) AS n
+         ${base} GROUP BY i.trial, i.eye, i.visit`
+      ).bind(...bind).all(),
       rowsQ.all(),
     ];
     if (wantFacets) {
       const bioBase = needBioJoin ? base : `FROM images i LEFT JOIN biomarkers b ON b.image_id = i.id ${where}`;
       tasks.push(
-        env.DB.prepare(`SELECT i.trial AS v, COUNT(*) AS n ${base} GROUP BY i.trial ORDER BY n DESC`).bind(...bind).all(),
-        env.DB.prepare(`SELECT i.eye AS v, COUNT(*) AS n ${base} GROUP BY i.eye ORDER BY n DESC`).bind(...bind).all(),
-        env.DB.prepare(`SELECT i.visit AS v, COUNT(*) AS n ${base} GROUP BY i.visit ORDER BY n DESC LIMIT 20`).bind(...bind).all(),
         env.DB.prepare(
           `SELECT ${BIOMARKERS.map(([k]) => `SUM(COALESCE(b.${k},0)) AS ${k}`).join(", ")},
                   SUM(CASE WHEN i.label_source='expert' THEN 1 ELSE 0 END) AS labelled,
                   SUM(CASE WHEN i.label_source='model'  THEN 1 ELSE 0 END) AS modelled ${bioBase}`
-        ).bind(...bind).first()
+        ).bind(...bind).all()
       );
     }
-    const [countRow, rows, fTrial, fEye, fVisit, fBio] = await Promise.all(tasks);
+    const [dimsQ, rows, fBioQ] = await Promise.all(tasks);
     auditRows(rows.meta, "results_filtered", debug);
+    auditRows(dimsQ.meta, "count_and_dim_facets", debug);
+    if (wantFacets) auditRows(fBioQ.meta, "facet_biomarkers", debug);
+
+    // Roll the grouped rows up into one list per dimension.
+    let total = 0;
+    const tally = { trial: new Map(), eye: new Map(), visit: new Map() };
+    for (const r of dimsQ.results) {
+      total += r.n;
+      for (const dim of ["trial", "eye", "visit"]) {
+        const v = r[dim];
+        if (v == null || v === "") continue;
+        tally[dim].set(v, (tally[dim].get(v) || 0) + r.n);
+      }
+    }
+    const facet = (dim, limit) => {
+      const out = [...tally[dim]].map(([v, n]) => ({ v, n })).sort((a, b) => b.n - a.n);
+      return limit ? out.slice(0, limit) : out;
+    };
+    const fBio = fBioQ ? fBioQ.results[0] : null;
 
     return json({
-      total: countRow.n,
+      total,
       ...(debug ? { _rows_read: debug } : {}),
       page, per_page: per,
       results: rows.results,
       facets: wantFacets ? {
-        trial: fTrial.results.filter(r => r.v),
-        eye: fEye.results.filter(r => r.v),
-        visit: fVisit.results.filter(r => r.v),
-        labelled: fBio.labelled || 0,
-        modelled: fBio.modelled || 0,
-        biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio[k] || 0 }))
+        trial: facet("trial"),
+        eye: facet("eye"),
+        visit: facet("visit", 20),
+        labelled: fBio ? fBio.labelled || 0 : 0,
+        modelled: fBio ? fBio.modelled || 0 : 0,
+        biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio ? fBio[k] || 0 : 0 }))
                               .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
       } : null,
-    }, 600);
+    }, 86400);
 
   } catch (err) {
     const msg = String(err && err.message || err);

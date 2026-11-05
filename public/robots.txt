@@ -1,0 +1,9 @@
+# The JSON API is not content to index. Every /api/image and filtered
+# /api/search call costs D1 row reads against a fixed daily allowance, and a
+# crawler walking the dataset can exhaust it on its own. Until this file
+# existed, /robots.txt returned the SPA's HTML with a 200, which crawlers read
+# as "no rules".
+User-agent: *
+Disallow: /api/
+Allow: /
+Crawl-delay: 10
