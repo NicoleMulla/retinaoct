@@ -9,8 +9,9 @@ import { BIOMARKERS, MODEL_BIOMARKERS } from "../_lib.js";
    The siblings query was the leak. `idx_img_eyeid` covers the eye_id lookup,
    but the ORDER BY visit, scan_index is not in that index, so SQLite had to
    read every scan belonging to the eye - up to ~2,100 of them - sort the lot,
-   and discard all but 12. idx_img_eye_seq(eye_id, visit, scan_index) returns
-   them already ordered so LIMIT 12 stops after 13 rows.
+   and discard all but 8 (the UI renders same_eye.slice(0,8)).
+   idx_img_eye_seq(eye_id, visit, scan_index) returns them already ordered so
+   the LIMIT stops after 9 rows.
    See scripts/migrations/002_eye_sequence_index.sql. */
 const ROW_BUDGET = 200;
 
@@ -86,7 +87,7 @@ async function handle({ params, env, request }) {
 
   const siblings = img.eye_id != null ? audit(await env.DB.prepare(
     `SELECT id, visit, scan_index, thumb_key, biomarker_count, label_source
-     FROM images WHERE eye_id = ? AND id != ? ORDER BY visit, scan_index LIMIT 12`
+     FROM images WHERE eye_id = ? AND id != ? ORDER BY visit, scan_index LIMIT 8`
   ).bind(img.eye_id, id).all(), "siblings", debug) : { results: [] };
 
   return json({
@@ -114,7 +115,7 @@ async function handle({ params, env, request }) {
     } : { kind: "expert", source: "OLIVES dataset expert annotation" },
     same_eye: siblings.results,
     ...(debug ? { _rows_read: debug } : {}),
-  }, { headers: { "cache-control": "public, max-age=0, must-revalidate, s-maxage=300" } });
+  });
   } catch (err) {
     return Response.json({ error: "lookup failed", detail: String(err && err.message || err) },
                          { status: 500 });

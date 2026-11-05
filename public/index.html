@@ -529,7 +529,7 @@ function syncMobileBar(total){
 }
 
 $("#search").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.page=1;load()};
-$("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load()};
+$("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load({noFacets:true})};
 $("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],has_bio:false,
   bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
 
