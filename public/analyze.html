@@ -206,10 +206,17 @@ function showError(msg, code){
       <a class="btn ghost" href="/">Browse the atlas meanwhile</a></div>`;
     return;
   }
-  const hint = code === "cold_start"
-    ? `<p class="hint">The model sleeps when idle to keep it free to run.</p>` : "";
+  // A cold start is not a failure and not anything to do with the uploaded
+  // image, so it does not get the red "Could not analyze this image" box.
+  // Shown only for this code, never as the generic error.
+  if(code === "cold_start"){
+    $("#results").innerHTML = `<div class="verdict"><b>${esc(msg)}</b>
+      <span>The model sleeps when idle to keep it free to run. Your scan has not
+      been analyzed yet — upload it again once the model is up.</span></div>`;
+    return;
+  }
   $("#results").innerHTML =
-    `<div class="verdict bad"><b>Could not analyze this image</b><span>${esc(msg)}</span></div>${hint}`;
+    `<div class="verdict bad"><b>Could not analyze this image</b><span>${esc(msg)}</span></div>`;
 }
 
 const esc = s => String(s).replace(/[&<>"']/g, c =>

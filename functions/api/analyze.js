@@ -106,7 +106,7 @@ export async function onRequestPost({ request, env }) {
   // 503 means the replica is still booting — a normal, retryable state for an
   // endpoint that scales to zero or a Space that has gone to sleep, not a failure.
   if (up.status === 503) {
-    return fail(503, "The model is starting up. Try again in about a minute.",
+    return fail(503, "Starting the model — this usually takes a few minutes.",
                 { code: "cold_start", retry_after: 60 });
   }
 
@@ -114,7 +114,7 @@ export async function onRequestPost({ request, env }) {
   // than JSON. Treat that as a cold start too, not as a broken model.
   const ctype = up.headers.get("content-type") || "";
   if (!ctype.includes("json")) {
-    return fail(503, "The model is waking up. Try again in about a minute.",
+    return fail(503, "Starting the model — this usually takes a few minutes.",
                 { code: "cold_start", retry_after: 60 });
   }
 

@@ -66,12 +66,12 @@ export async function onRequestPost({ request, env }) {
                 { code: "quota_exceeded" });
   }
   if (up.status === 503) {
-    return fail(503, "The model is starting up. Try again in about a minute.",
+    return fail(503, "Starting the model — this usually takes a few minutes.",
                 { code: "cold_start" });
   }
   const ctype = up.headers.get("content-type") || "";
   if (!ctype.includes("json")) {
-    return fail(503, "The model is waking up. Try again in about a minute.",
+    return fail(503, "Starting the model — this usually takes a few minutes.",
                 { code: "cold_start" });
   }
   if (!up.ok) return fail(502, `The model returned ${up.status}.`, { code: "upstream_error" });
