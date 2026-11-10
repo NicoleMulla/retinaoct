@@ -14,10 +14,16 @@ name: Keep the model warm
 #
 # On the interval. The Space reports a 48-hour idle timeout, but it was
 # observed asleep under two hours after its last use, so the reported figure
-# cannot be relied on. Thirty minutes leaves room for that and for GitHub's
-# scheduled runs, which are best-effort and are often several minutes late and
-# occasionally skipped under load. If the model is still found asleep, halve
-# it before looking for anything cleverer.
+# cannot be relied on, and HuggingFace does not document a real one for
+# ZeroGPU. Fifteen minutes is deliberately well inside any plausible timeout:
+# it leaves room for GitHub's scheduled runs, which are best-effort and are
+# often several minutes late and occasionally skipped under load, so even a
+# couple of consecutive misses stay harmless.
+#
+# This is cheap to run but not free to HuggingFace -- it holds a CPU container
+# slot continuously. Do not shorten it further without a reason; if the model
+# is somehow still found asleep, the interval is not the problem and the
+# question is whether /api/warm resets the idle timer at all.
 #
 # Note: GitHub disables scheduled workflows in a public repository after 60
 # days with no commits. If analysis starts cold-starting again months from
@@ -25,7 +31,7 @@ name: Keep the model warm
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:        # so it can be triggered by hand from the Actions tab
 
 permissions: {}             # needs nothing from the repository
