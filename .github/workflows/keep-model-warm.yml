@@ -1,0 +1,55 @@
+name: Keep the model warm
+
+# The HuggingFace Space sleeps when idle, and waking it costs the first
+# visitor somewhere between 44 seconds and seven minutes. This pokes it often
+# enough that it never goes idle.
+#
+# It calls retinaoct.com/api/warm rather than the Space directly, so no
+# HuggingFace token is needed here: the Pages Function already holds one. That
+# keeps the credential in exactly one place.
+#
+# Costs no GPU quota. ZeroGPU only allocates a GPU inside the handler's
+# @spaces.GPU call, and /api/warm asks for the Space root, which never reaches
+# one.
+#
+# On the interval. The Space reports a 48-hour idle timeout, but it was
+# observed asleep under two hours after its last use, so the reported figure
+# cannot be relied on. Thirty minutes leaves room for that and for GitHub's
+# scheduled runs, which are best-effort and are often several minutes late and
+# occasionally skipped under load. If the model is still found asleep, halve
+# it before looking for anything cleverer.
+#
+# Note: GitHub disables scheduled workflows in a public repository after 60
+# days with no commits. If analysis starts cold-starting again months from
+# now, check that this workflow is still enabled before anything else.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:        # so it can be triggered by hand from the Actions tab
+
+permissions: {}             # needs nothing from the repository
+
+concurrency:
+  group: keep-model-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Poke the model
+        run: |
+          code=$(curl -sS -o /tmp/warm.json -w '%{http_code}' \
+                   --max-time 60 --retry 2 --retry-delay 10 \
+                   https://retinaoct.com/api/warm)
+          echo "HTTP $code"
+          cat /tmp/warm.json || true
+          echo
+          # A 503 means the site could not reach the model at all, which is
+          # worth a red tick; anything 2xx means the nudge landed.
+          case "$code" in
+            2*) echo "model poked" ;;
+            *)  echo "::error::/api/warm returned $code"; exit 1 ;;
+          esac
