@@ -155,6 +155,37 @@ drop.addEventListener("drop", e => { if(!busy) choose(e.dataTransfer.files[0]); 
 $("#reset").onclick = e => { e.stopPropagation(); if(!busy) input.click(); };
 
 /* ---------- analysis ---------- */
+// The model sleeps when idle. Waking it took 44s once measured and over
+// seven minutes from properly cold, so a fixed "try again in a minute" is
+// useless. Asking again costs nothing while it is down -- /api/analyze 503s
+// without reaching a GPU -- and the first request that succeeds IS the
+// analysis, so the page just keeps asking and shows the wait.
+const COLD_POLL_MS = 10000;
+const COLD_GIVE_UP_MS = 10 * 60 * 1000;
+
+function waitedFor(startedAt){
+  const s = Math.round((Date.now() - startedAt) / 1000);
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
+function showWaiting(startedAt){
+  $("#results").innerHTML = `<div class="loading"><span class="spin" aria-hidden="true"></span>
+    <b>Starting the model — this usually takes a few minutes.</b>
+    <span>It sleeps when idle to keep it free to run. Waiting ${waitedFor(startedAt)} —
+    your scan is analyzed automatically the moment the model is up, so there is nothing
+    to re-upload and nothing to click.</span></div>`;
+}
+
+async function postScan(){
+  const r = await fetch("/api/analyze", {
+    method: "POST",
+    headers: { "content-type": file.type || "application/octet-stream" },
+    body: file,
+  });
+  const d = await r.json().catch(() => ({ error: `Request failed (${r.status}).` }));
+  return { r, d };
+}
+
 $("#run").onclick = async () => {
   if(!file || busy) return;
   busy = true;
@@ -162,17 +193,23 @@ $("#run").onclick = async () => {
   $("#run").textContent = "Analyzing…";
   $("#results").innerHTML = `<div class="loading"><span class="spin" aria-hidden="true"></span>
     <b>Running the model</b>
-    <span>If the endpoint has scaled to zero this can take up to a minute.</span></div>`;
+    <span>This takes a couple of seconds once the model is awake.</span></div>`;
 
+  const started = Date.now();
   try{
-    const r = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "content-type": file.type || "application/octet-stream" },
-      body: file,
-    });
-    const d = await r.json().catch(() => ({ error: `Request failed (${r.status}).` }));
-    if(!r.ok) showError(d.error || `Request failed (${r.status}).`, d.code);
-    else render(d);
+    for(;;){
+      const { r, d } = await postScan();
+      if(r.ok){ render(d); break; }
+      if(d.code !== "cold_start"){
+        showError(d.error || `Request failed (${r.status}).`, d.code); break;
+      }
+      if(Date.now() - started > COLD_GIVE_UP_MS){
+        showError(d.error, d.code); break;
+      }
+      $("#run").textContent = "Starting model…";
+      showWaiting(started);
+      await new Promise(done => setTimeout(done, COLD_POLL_MS));
+    }
   }catch(err){
     showError("Could not reach the server. Check your connection and try again.");
   }finally{
@@ -211,8 +248,9 @@ function showError(msg, code){
   // Shown only for this code, never as the generic error.
   if(code === "cold_start"){
     $("#results").innerHTML = `<div class="verdict"><b>${esc(msg)}</b>
-      <span>The model sleeps when idle to keep it free to run. Your scan has not
-      been analyzed yet — upload it again once the model is up.</span></div>`;
+      <span>The model sleeps when idle to keep it free to run. It has not come up
+      after ten minutes of waiting, which is longer than usual — press Analyze scan to
+      keep trying. Your scan is still selected.</span></div>`;
     return;
   }
   $("#results").innerHTML =
@@ -450,6 +488,13 @@ window.addEventListener("resize", () => { if(salActive) drawMap(salActive); });
   grip.addEventListener("touchend",()=>{ if(y0==null)return; sheet.style.transition="";
     sheet.style.transform=""; if(dy>90) hide(); y0=null; });
 })();
+
+/* Start the model waking as soon as someone lands here, rather than when they
+   press Analyze. The boot is the same length either way, but it now overlaps
+   with choosing a file instead of following it. Costs no GPU and nothing
+   depends on the result, so failures are ignored. */
+fetch("/api/warm", { method: "GET", cache: "no-store" }).catch(() => {});
+
 </script>
 </body>
 </html>
