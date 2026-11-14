@@ -1,0 +1,16 @@
+# Keeps the model awake on a schedule that actually fires.
+#
+# This exists because GitHub Actions does not honour a */15 cron. Measured on
+# the repo's own run history: requested every 15 minutes, actually delivered
+# every 4-8 hours. GitHub documents schedules as best-effort and deprioritises
+# high-frequency ones; the result was that the model slept between runs and
+# visitors kept paying the cold start.
+#
+# Cloudflare Cron Triggers fire on time, and the project already runs here.
+name = "retinaoct-keepwarm"
+main = "index.js"
+compatibility_date = "2026-01-01"
+workers_dev = false
+
+[triggers]
+crons = ["*/10 * * * *"]

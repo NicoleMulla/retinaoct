@@ -47,15 +47,23 @@ jobs:
     steps:
       - name: Poke the model
         run: |
-          code=$(curl -sS -o /tmp/warm.json -w '%{http_code}' \
-                   --max-time 60 --retry 2 --retry-delay 10 \
-                   https://retinaoct.com/api/warm)
-          echo "HTTP $code"
-          cat /tmp/warm.json || true
-          echo
-          # A 503 means the site could not reach the model at all, which is
-          # worth a red tick; anything 2xx means the nudge landed.
-          case "$code" in
-            2*) echo "model poked" ;;
-            *)  echo "::error::/api/warm returned $code"; exit 1 ;;
-          esac
+          # ?debug=1 waits for the upstream response and reports it. Without
+          # this the job went green for days while doing nothing: /api/warm
+          # answers 200 regardless of whether the model was actually reached.
+          curl -sS -o /tmp/warm.json -w 'HTTP %{http_code}\n' \
+            --max-time 180 --retry 2 --retry-delay 15 \
+            "https://retinaoct.com/api/warm?debug=1&src=cron"
+          cat /tmp/warm.json; echo
+          python3 - <<'PY'
+          import json, sys
+          d = json.load(open("/tmp/warm.json"))
+          status, err = d.get("status"), d.get("err")
+          if err:
+              sys.exit(f"::error::warm fetch raised {err}")
+          if status != 200:
+              # A fast 503 is the signature of a request HuggingFace declined
+              # to treat as a page load, so it never started the container.
+              sys.exit(f"::error::upstream returned {status} after "
+                       f"{d.get('elapsed_ms')}ms - the model was not woken")
+          print(f"model reached: {status} in {d.get('elapsed_ms')}ms")
+          PY
