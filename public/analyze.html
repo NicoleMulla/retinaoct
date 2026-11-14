@@ -155,11 +155,14 @@ drop.addEventListener("drop", e => { if(!busy) choose(e.dataTransfer.files[0]); 
 $("#reset").onclick = e => { e.stopPropagation(); if(!busy) input.click(); };
 
 /* ---------- analysis ---------- */
-// The model sleeps when idle. Waking it took 44s once measured and over
-// seven minutes from properly cold, so a fixed "try again in a minute" is
-// useless. Asking again costs nothing while it is down -- /api/analyze 503s
+// The model sleeps when idle. Measured wakes ranged from 44s to over seven
+// minutes -- a 10x spread -- so the page deliberately gives NO estimate: any
+// figure would be wrong most of the time, and a confident wrong number is
+// what made the old "try again in a minute" copy actively misleading. It
+// shows the elapsed wait instead, which is measured rather than predicted.
+// Asking again costs nothing while the model is down -- /api/analyze 503s
 // without reaching a GPU -- and the first request that succeeds IS the
-// analysis, so the page just keeps asking and shows the wait.
+// analysis, so the page just keeps asking.
 const COLD_POLL_MS = 10000;
 const COLD_GIVE_UP_MS = 10 * 60 * 1000;
 
@@ -170,7 +173,7 @@ function waitedFor(startedAt){
 
 function showWaiting(startedAt){
   $("#results").innerHTML = `<div class="loading"><span class="spin" aria-hidden="true"></span>
-    <b>Starting the model — this usually takes a few minutes.</b>
+    <b>Starting the model</b>
     <span>It sleeps when idle to keep it free to run. Waiting ${waitedFor(startedAt)} —
     your scan is analyzed automatically the moment the model is up, so there is nothing
     to re-upload and nothing to click.</span></div>`;
@@ -249,8 +252,8 @@ function showError(msg, code){
   if(code === "cold_start"){
     $("#results").innerHTML = `<div class="verdict"><b>${esc(msg)}</b>
       <span>The model sleeps when idle to keep it free to run. It has not come up
-      after ten minutes of waiting, which is longer than usual — press Analyze scan to
-      keep trying. Your scan is still selected.</span></div>`;
+      after ten minutes of waiting — press Analyze scan to keep trying. Your scan is
+      still selected.</span></div>`;
     return;
   }
   $("#results").innerHTML =
