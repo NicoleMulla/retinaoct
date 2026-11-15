@@ -17,8 +17,8 @@ browser ──▶ Cloudflare Pages ──┬── /            static UI (no fr
 | Piece | Detail |
 |---|---|
 | Database | D1 `retinaoct-olives`, id `238aba91-eb38-4f2a-8580-484324ca1fd3`, region ENAM |
-| Rows | 78,283 images · 9,408 biomarker sets · 40 patients |
-| Images | 156,566 WebP derivatives in B2 `retinaoct/web/`, 5.38 GB |
+| Rows | 153,045 images · 9,408 expert biomarker sets · 143,607 model-inferred · 87 patients, 171 eyes |
+| Images | 306,090 WebP derivatives (a thumb and a full per scan) in B2 `retinaoct/web/`, 10.6 GB |
 | Hosting | Cloudflare Pages project `retinaoct` |
 
 **The API runs as Pages Functions, not a Worker.** Functions deploy under the
