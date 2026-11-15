@@ -1,43 +1,33 @@
-name: Keep the model warm
+name: Keep-warm canary
 
-# The HuggingFace Space sleeps when idle, and waking it costs the first
-# visitor somewhere between 44 seconds and seven minutes. This pokes it often
-# enough that it never goes idle.
+# SECONDARY. The primary keep-warm is the Cloudflare Cron Trigger in
+# workers/keepwarm, which fires every 10 minutes and actually keeps to its
+# schedule. This job exists as an independent canary: it checks from outside
+# Cloudflare that retinaoct.com can still reach and wake the model, and goes
+# red when it cannot.
 #
-# It calls retinaoct.com/api/warm rather than the Space directly, so no
-# HuggingFace token is needed here: the Pages Function already holds one. That
-# keeps the credential in exactly one place.
+# Do not rely on this one for warmth. GitHub treats schedules as best-effort
+# and throttles frequent ones hard — asked for every 15 minutes, this repo's
+# run history delivered every 4-8 hours, which is how the model came to be
+# cold all day while the job reported success.
 #
-# Costs no GPU quota. ZeroGPU only allocates a GPU inside the handler's
-# @spaces.GPU call, and /api/warm asks for the Space root, which never reaches
-# one.
-#
-# On the interval. The Space reports a 48-hour idle timeout, but it was
-# observed asleep under two hours after its last use, so the reported figure
-# cannot be relied on, and HuggingFace does not document a real one for
-# ZeroGPU. Fifteen minutes is deliberately well inside any plausible timeout:
-# it leaves room for GitHub's scheduled runs, which are best-effort and are
-# often several minutes late and occasionally skipped under load, so even a
-# couple of consecutive misses stay harmless.
-#
-# This is cheap to run but not free to HuggingFace -- it holds a CPU container
-# slot continuously. Do not shorten it further without a reason; if the model
-# is somehow still found asleep, the interval is not the problem and the
-# question is whether /api/warm resets the idle timer at all.
+# It asks ?debug=1 so it asserts on what HuggingFace returned, not on what our
+# own endpoint says. The earlier version checked only that /api/warm answered,
+# which it always does, so it was green for days while every poke was being
+# refused in 0.18s with no User-Agent.
 #
 # Note: GitHub disables scheduled workflows in a public repository after 60
-# days with no commits. If analysis starts cold-starting again months from
-# now, check that this workflow is still enabled before anything else.
+# days with no commits.
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:        # so it can be triggered by hand from the Actions tab
 
 permissions: {}             # needs nothing from the repository
 
 concurrency:
-  group: keep-model-warm
+  group: keep-warm-canary
   cancel-in-progress: false
 
 jobs:
