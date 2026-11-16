@@ -51,8 +51,15 @@ export function buildFilter(url) {
 
   // Provenance filter: expert annotation vs model inference. Reads a column on
   // `images`, which is already scanned, so it costs no extra rows.
-  const src = (p.get("source") || "").trim();
-  if (src === "expert" || src === "model") { where.push("i.label_source = ?"); bind.push(src); }
+  // Accepts a list so the grid can offer "doctor annotated" and "machine
+  // annotated" as independent checkboxes. Ticking both is the same query as
+  // ticking neither except that it excludes the handful of scans the model
+  // declined, so it stays a real filter rather than a no-op.
+  const sources = list("source").filter(s => s === "expert" || s === "model");
+  if (sources.length) {
+    where.push(`i.label_source IN (${sources.map(() => "?").join(",")})`);
+    bind.push(...sources);
+  }
 
   for (const [param, col, op] of [["bcva_min","bcva",">="],["bcva_max","bcva","<="],
                                   ["cst_min","cst",">="],["cst_max","cst","<="]]) {

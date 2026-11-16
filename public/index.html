@@ -157,7 +157,7 @@
 const IMG_BASE = "/img";             // proxied from B2 (read-only, web/ prefix)
 const PER = 24;
 const API_V = "2";           // bump to bypass stale cached API responses
-const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], has_bio:false,
+const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], source:[],
                 bcva_min:"", bcva_max:"", cst_min:"", cst_max:"", sel:null };
 const $ = s => document.querySelector(s);
 const fmt = n => (n ?? 0).toLocaleString();
@@ -176,7 +176,7 @@ function qs(opts={}){
   const u=new URLSearchParams();
   if(state.q) u.set("q",state.q);
   for(const k of ["trial","eye","visit","bio"]) if(state[k].length) u.set(k,state[k].join(","));
-  if(state.has_bio) u.set("has_bio","1");
+  if(state.source.length) u.set("source",state.source.join(","));
   for(const k of ["bcva_min","bcva_max","cst_min","cst_max"]) if(state[k]!=="") u.set(k,state[k]);
   u.set("sort",state.sort); u.set("page",state.page); u.set("per_page",PER); u.set("v",API_V);
   if(opts.noFacets) u.set("facets","0");
@@ -275,7 +275,8 @@ function renderFacets(f,total){
 
   $("#groups").innerHTML =
     group("bio",ICON.bio,"Biomarkers",`<div class="opts" id="bio-opts">
-        <label class="opt"><input type="checkbox" id="hasbio" ${state.has_bio?"checked":""}><span>Annotated only</span><span class="n">${fmt(f.labelled)}</span></label>
+        <label class="opt"><input type="checkbox" data-src="expert" ${state.source.includes("expert")?"checked":""}><span>Doctor annotated images</span><span class="n">${fmt(f.labelled)}</span></label>
+        <label class="opt"><input type="checkbox" data-src="model" ${state.source.includes("model")?"checked":""}><span>Machine annotated images</span><span class="n">${fmt(f.modelled)}</span></label>
         ${bioRows||'<span style="font-size:12px;color:var(--faint)">none in this selection</span>'}</div>`)
   + group("trial",ICON.trial,"Clinical trial",`<div class="opts">${
       f.trial.map(t=>opt("trial",t.v,t.v==="TREX_DME"?"TREX-DME":"PRIME",t.n,state.trial.includes(t.v))).join("")}</div>`)
@@ -292,7 +293,9 @@ function renderFacets(f,total){
   $("#groups").querySelectorAll('input[type=checkbox][data-key]').forEach(el=>{
     el.onchange=()=>toggle(el.dataset.key,el.dataset.val);
   });
-  const hb=$("#hasbio"); if(hb) hb.onchange=()=>{state.has_bio=hb.checked;state.page=1;load()};
+  $("#groups").querySelectorAll("input[data-src]").forEach(el=>{
+    el.onchange=()=>toggle("source",el.dataset.src);
+  });
   for(const k of ["cst_min","cst_max","bcva_min","bcva_max"]){
     const el=$("#"+k); if(el) el.onchange=()=>{state[k]=el.value;state.page=1;load()};
   }
@@ -302,13 +305,13 @@ function renderFacets(f,total){
   let chips=[];
   for(const k of ["bio","trial","eye","visit"])
     for(const v of state[k]) chips.push(`<span class="chip">${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
-  if(state.has_bio) chips.push(`<span class="chip">Annotated only<button data-k="has_bio">✕</button></span>`);
+  for(const v of state.source) chips.push(`<span class="chip">${
+    v==="expert"?"Doctor annotated":"Machine annotated"}<button data-k="source" data-v="${v}">✕</button></span>`);
   if(state.q) chips.push(`<span class="chip">“${state.q}”<button data-k="q">✕</button></span>`);
   $("#chips").innerHTML=chips.join("");
   $("#chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     const k=b.dataset.k;
-    if(k==="has_bio"){state.has_bio=false}
-    else if(k==="q"){state.q="";$("#q").value=""}
+    if(k==="q"){state.q="";$("#q").value=""}
     else toggle(k,b.dataset.v);
     state.page=1; load();
   });
@@ -528,7 +531,7 @@ mq.addEventListener("change",e=>{ if(!e.matches) closeSheet(); });
 /* keep the bottom bar in step with the current query */
 function syncMobileBar(total){
   const n = state.bio.length + state.trial.length + state.eye.length + state.visit.length
-          + (state.has_bio?1:0) + (state.q?1:0)
+          + state.source.length + (state.q?1:0)
           + ["bcva_min","bcva_max","cst_min","cst_max"].filter(k=>state[k]!=="").length;
   const badge=$("#mb-count");
   badge.textContent=n; badge.hidden = n===0;
@@ -541,7 +544,7 @@ function syncMobileBar(total){
 
 $("#search").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.page=1;load()};
 $("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load({noFacets:true})};
-$("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],has_bio:false,
+$("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],source:[],
   bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
 
 load();
