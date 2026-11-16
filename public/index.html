@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b1836">
 <title>Retina OCT — searchable OCT image atlas</title>
 <meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations, model-inferred predictions, and clinical metadata.">
-<link rel="stylesheet" href="styles.css?v=a9cda693">
+<link rel="stylesheet" href="styles.css?v=70bac354">
 <link rel="icon" href="favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -48,7 +48,7 @@
 </nav>
 
 <section class="hero">
-  <div class="hero-bg" aria-hidden="true"><img src="/hero.webp?v=8a0e8155" width="1960" height="620" alt="" decoding="async" fetchpriority="high"></div>
+  <div class="hero-bg" aria-hidden="true"><img src="/hero.webp?v=dafb5672" width="1960" height="620" alt="" decoding="async" fetchpriority="high"></div>
   <div class="wrap hero-in">
     <div>
       <h1>Search and analyze <em>real OCT data</em></h1>
@@ -427,14 +427,26 @@ function provBanner(m){
 /* In verification mode each call gets a correct/incorrect switch. Nothing is
    offered for a biomarker the model never assessed, or one with no recorded
    value — there is no call there to agree or disagree with. */
+const VRF_ICON = {
+  correct: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.8l4.2 4.2L19 7.2"
+    fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  incorrect: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"
+    fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg>`,
+};
+
+/* Three states per biomarker: correct, incorrect, and undecided — undecided
+   being neither button lit, which is where every row starts. Clicking the lit
+   button returns the row to undecided, so a mis-click is one click to undo.
+   Icon-only: the words were wider than the biomarker labels they sat beside. */
 function vrfSwitch(b, m){
   if(!verifyOn || b.unavailable==="not_predictable" || b.present==null) return "";
   const cur = (m.verifications || {})[b.key] || "";
-  const btn = (v, text) =>
+  const btn = (v, label) =>
     `<button class="vrf-b${cur===v?" on "+v:""}" data-v="${v}" data-bio="${b.key}"
       data-present="${b.present?1:0}" data-src="${b.source||""}"
-      aria-pressed="${cur===v}">${text}</button>`;
-  return `<div class="vrf">${btn("correct","Correct")}${btn("incorrect","Incorrect")}</div>`;
+      aria-pressed="${cur===v}" aria-label="${label}"
+      title="${cur===v?"Clear this \u2014 back to undecided":label}">${VRF_ICON[v]}</button>`;
+  return `<div class="vrf">${btn("correct","Mark correct")}${btn("incorrect","Mark incorrect")}</div>`;
 }
 
 function bioRow(b, m){
@@ -528,6 +540,8 @@ d.querySelectorAll(".vrf-b").forEach(btn=>btn.onclick=async ()=>{
         x.classList.toggle("correct", on && x.dataset.v==="correct");
         x.classList.toggle("incorrect", on && x.dataset.v==="incorrect");
         x.setAttribute("aria-pressed", String(on));
+        x.title = on ? "Clear this \u2014 back to undecided"
+                     : (x.dataset.v === "correct" ? "Mark correct" : "Mark incorrect");
       });
       refreshVerifiedCount();
     }catch(err){
