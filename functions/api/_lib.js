@@ -55,6 +55,13 @@ export function buildFilter(url) {
   // annotated" as independent checkboxes. Ticking both is the same query as
   // ticking neither except that it excludes the handful of scans the model
   // declined, so it stays a real filter rather than a no-op.
+  // Images someone has judged in verification mode. The subquery scans the
+  // verifications table, which holds a handful of rows, and the outer lookup
+  // is by primary key — so this stays cheap however large the corpus grows.
+  if (p.get("verified") === "1") {
+    where.push("i.id IN (SELECT image_id FROM verifications)");
+  }
+
   const sources = list("source").filter(s => s === "expert" || s === "model");
   if (sources.length) {
     where.push(`i.label_source IN (${sources.map(() => "?").join(",")})`);

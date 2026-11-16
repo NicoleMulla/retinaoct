@@ -29,12 +29,18 @@ export async function onRequestGet(ctx) {
 
   // The dataset is static, so a detail response is good for a long time.
   // Without this every one of the 153,045 image pages hit D1 on every view.
+  // ?verify=1 asks for the reviewer's recorded verdicts alongside the scan.
+  // Those change during a review session, so that variant is never cached.
+  const live = new URL(request.url).searchParams.get("verify") === "1";
+
   const cache = caches.default;
-  const hit = await cache.match(request);
-  if (hit) return hit;
+  if (!live) {
+    const hit = await cache.match(request);
+    if (hit) return hit;
+  }
 
   const res = await handle(ctx);
-  if (res.status === 200) waitUntil(cache.put(request, res.clone()));
+  if (!live && res.status === 200) waitUntil(cache.put(request, res.clone()));
   return res;
 }
 
@@ -85,6 +91,20 @@ async function handle({ params, env, request }) {
     };
   });
 
+  // Recorded verdicts for this scan, only when the grid asks in verification
+  // mode. Keyed by biomarker so the UI can set each switch directly.
+  let verdicts = null;
+  if (new URL(request.url).searchParams.get("verify") === "1") {
+    try {
+      const v = audit(await env.DB.prepare(
+        "SELECT biomarker, verdict FROM verifications WHERE image_id = ?"
+      ).bind(id).all(), "verifications", debug);
+      verdicts = Object.fromEntries(v.results.map(r => [r.biomarker, r.verdict]));
+    } catch {
+      verdicts = {};   // table absent; verification simply unavailable
+    }
+  }
+
   // No ORDER BY, deliberately. `ORDER BY visit, scan_index` is not covered by
   // idx_img_eyeid, so SQLite had to read every scan of the eye - 980 rows for
   // image 25792, 2,156 for image 1 - sort them, and keep 8. Dropping it lets
@@ -125,6 +145,7 @@ async function handle({ params, env, request }) {
               + "retina is normal.",
     } : { kind: "expert", source: "OLIVES dataset expert annotation" },
     same_eye: siblings.results,
+    ...(verdicts ? { verifications: verdicts } : {}),
     ...(debug ? { _rows_read: debug } : {}),
   });
   } catch (err) {

@@ -157,7 +157,23 @@
 const IMG_BASE = "/img";             // proxied from B2 (read-only, web/ prefix)
 const PER = 24;
 const API_V = "2";           // bump to bypass stale cached API responses
-const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], source:[],
+/* Verification mode needs BOTH halves: ?mode=verification in the URL and the
+   backend switch on. With the switch off the link is inert — the page behaves
+   exactly as it does without the parameter, which is the point of having a
+   server-side toggle rather than a client-side one. */
+const VERIFY_ASKED = new URLSearchParams(location.search).get("mode") === "verification";
+let verifyOn = false;
+
+async function initVerify(){
+  if(!VERIFY_ASKED) return;
+  try{
+    const r = await fetch("/api/config", { cache:"no-store" });
+    verifyOn = r.ok && (await r.json()).verification === true;
+  }catch{ verifyOn = false; }
+  if(verifyOn) document.body.classList.add("verify-mode");
+}
+
+const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], source:[], verified:false,
                 bcva_min:"", bcva_max:"", cst_min:"", cst_max:"", sel:null };
 const $ = s => document.querySelector(s);
 const fmt = n => (n ?? 0).toLocaleString();
@@ -177,6 +193,8 @@ function qs(opts={}){
   if(state.q) u.set("q",state.q);
   for(const k of ["trial","eye","visit","bio"]) if(state[k].length) u.set(k,state[k].join(","));
   if(state.source.length) u.set("source",state.source.join(","));
+  if(state.verified) u.set("verified","1");
+  if(verifyOn) u.set("verified_count","1");   // the sidebar count, only in this mode
   for(const k of ["bcva_min","bcva_max","cst_min","cst_max"]) if(state[k]!=="") u.set(k,state[k]);
   u.set("sort",state.sort); u.set("page",state.page); u.set("per_page",PER); u.set("v",API_V);
   if(opts.noFacets) u.set("facets","0");
@@ -197,6 +215,21 @@ async function errText(r, fallback){
   if(kind==="quota") return `The image database has hit its daily query limit. `
     + `It resets at midnight UTC — please try again then. Browsing already-loaded pages still works.`;
   return fallback || `Search failed (${r.status}).`;
+}
+
+/* After a verdict the "Verified images" count is stale. Re-reading the whole
+   grid would close the detail panel mid-review, so only the number is fetched
+   and written back in place. */
+async function refreshVerifiedCount(){
+  if(!verifyOn) return;
+  try{
+    const r = await fetch("/api/search?per_page=1&verified_count=1&v="+API_V+"&t="+Date.now(),
+                          { cache:"no-store" });
+    if(!r.ok) return;
+    const n = ((await r.json()).facets || {}).verified;
+    const el = $("#verified-only");
+    if(el && n != null) el.parentElement.querySelector(".n").textContent = fmt(n);
+  }catch{ /* the count is cosmetic; a failure here changes nothing recorded */ }
 }
 
 async function load(opts={}){
@@ -277,6 +310,7 @@ function renderFacets(f,total){
     group("bio",ICON.bio,"Biomarkers",`<div class="opts" id="bio-opts">
         <label class="opt"><input type="checkbox" data-src="expert" ${state.source.includes("expert")?"checked":""}><span>Doctor annotated images</span><span class="n">${fmt(f.labelled)}</span></label>
         <label class="opt"><input type="checkbox" data-src="model" ${state.source.includes("model")?"checked":""}><span>Machine annotated images</span><span class="n">${fmt(f.modelled)}</span></label>
+        ${verifyOn?`<label class="opt"><input type="checkbox" id="verified-only" ${state.verified?"checked":""}><span>Verified images</span><span class="n">${fmt(f.verified||0)}</span></label>`:""}
         ${bioRows||'<span style="font-size:12px;color:var(--faint)">none in this selection</span>'}</div>`)
   + group("trial",ICON.trial,"Clinical trial",`<div class="opts">${
       f.trial.map(t=>opt("trial",t.v,t.v==="TREX_DME"?"TREX-DME":"PRIME",t.n,state.trial.includes(t.v))).join("")}</div>`)
@@ -296,6 +330,8 @@ function renderFacets(f,total){
   $("#groups").querySelectorAll("input[data-src]").forEach(el=>{
     el.onchange=()=>toggle("source",el.dataset.src);
   });
+  const vo=$("#verified-only");
+  if(vo) vo.onchange=()=>{state.verified=vo.checked;state.page=1;load()};
   for(const k of ["cst_min","cst_max","bcva_min","bcva_max"]){
     const el=$("#"+k); if(el) el.onchange=()=>{state[k]=el.value;state.page=1;load()};
   }
@@ -307,11 +343,13 @@ function renderFacets(f,total){
     for(const v of state[k]) chips.push(`<span class="chip">${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
   for(const v of state.source) chips.push(`<span class="chip">${
     v==="expert"?"Doctor annotated":"Machine annotated"}<button data-k="source" data-v="${v}">✕</button></span>`);
+  if(state.verified) chips.push(`<span class="chip">Verified images<button data-k="verified">✕</button></span>`);
   if(state.q) chips.push(`<span class="chip">“${state.q}”<button data-k="q">✕</button></span>`);
   $("#chips").innerHTML=chips.join("");
   $("#chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     const k=b.dataset.k;
-    if(k==="q"){state.q="";$("#q").value=""}
+    if(k==="verified"){state.verified=false}
+    else if(k==="q"){state.q="";$("#q").value=""}
     else toggle(k,b.dataset.v);
     state.page=1; load();
   });
@@ -386,17 +424,30 @@ function provBanner(m){
       (distance ${p.ood_distance!=null?Math.round(p.ood_distance):"—"}). Treat with extra caution.</span>`:""}
   </div>`;
 }
-function bioRow(b){
+/* In verification mode each call gets a correct/incorrect switch. Nothing is
+   offered for a biomarker the model never assessed, or one with no recorded
+   value — there is no call there to agree or disagree with. */
+function vrfSwitch(b, m){
+  if(!verifyOn || b.unavailable==="not_predictable" || b.present==null) return "";
+  const cur = (m.verifications || {})[b.key] || "";
+  const btn = (v, text) =>
+    `<button class="vrf-b${cur===v?" on "+v:""}" data-v="${v}" data-bio="${b.key}"
+      data-present="${b.present?1:0}" data-src="${b.source||""}"
+      aria-pressed="${cur===v}">${text}</button>`;
+  return `<div class="vrf">${btn("correct","Correct")}${btn("incorrect","Incorrect")}</div>`;
+}
+
+function bioRow(b, m){
   if(b.unavailable==="not_predictable")
     return `<div class="bio off"><span class="dot u"></span>${b.label}
       <span class="v" title="Too few positive training patients for the model to predict this reliably">Not assessed</span></div>`;
   if(b.source==="model"){
     const pct=b.confidence!=null?Math.round(b.confidence*100):null;
     return `<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}
-      <span class="v">${b.present?"Likely":"Unlikely"}${pct!=null?` <em>${pct}%</em>`:""}</span></div>`;
+      <span class="v">${b.present?"Likely":"Unlikely"}${pct!=null?` <em>${pct}%</em>`:""}</span>${vrfSwitch(b,m)}</div>`;
   }
   return `<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}
-    <span class="v">${b.present?"Present":"Absent"}</span></div>`;
+    <span class="v">${b.present?"Present":"Absent"}</span>${vrfSwitch(b,m)}</div>`;
 }
 function modelFoot(m){
   const np=(m.provenance&&m.provenance.not_predicted)||[];
@@ -406,7 +457,7 @@ function modelFoot(m){
 }
 
   if(isMobile()) openSheet($("#detail"));
-  const r=await fetch("/api/image/"+id+"?v="+API_V);
+  const r=await fetch("/api/image/"+id+"?v="+API_V+(verifyOn?"&verify=1":""));
   if(!r.ok){ d.innerHTML=`<div class="empty">${await errText(r, `Could not load image ${id}.`)}</div>`; return; }
   const m=await r.json();
   const u=imgUrl(m.full_key);
@@ -436,7 +487,7 @@ function modelFoot(m){
     </div>
     <div id="tab-b" hidden class="rows">
       ${m.label_source==="rejected" ? provBanner(m)
-        : m.has_labels ? provBanner(m) + m.biomarkers.map(b=>bioRow(b)).join("") +
+        : m.has_labels ? provBanner(m) + m.biomarkers.map(b=>bioRow(b,m)).join("") +
           (m.provenance && m.provenance.kind==="model" ? modelFoot(m) : "")
         : `<div class="empty" style="padding:24px 0">This image has clinical metadata but no biomarker labels.</div>`}
     </div>
@@ -457,6 +508,39 @@ function modelFoot(m){
     $("#tab-d").hidden = t.dataset.t!=="d"; $("#tab-b").hidden = t.dataset.t!=="b";
   });
   d.querySelectorAll(".strip [data-id]").forEach(el=>el.onclick=()=>openDetail(+el.dataset.id));
+d.querySelectorAll(".vrf-b").forEach(btn=>btn.onclick=async ()=>{
+    const group = btn.parentElement;
+    const was = btn.classList.contains("on");
+    const verdict = was ? null : btn.dataset.v;      // clicking the set one clears it
+    group.querySelectorAll(".vrf-b").forEach(x=>x.disabled=true);
+    try{
+      const r = await fetch("/api/verify", {
+        method:"POST", headers:{"content-type":"application/json"},
+        body: JSON.stringify({ image_id:m.id, biomarker:btn.dataset.bio, verdict,
+                               shown_present: btn.dataset.present==="1",
+                               source: btn.dataset.src || null }) });
+      if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error || ("HTTP "+r.status));
+      m.verifications = m.verifications || {};
+      if(verdict) m.verifications[btn.dataset.bio] = verdict; else delete m.verifications[btn.dataset.bio];
+      group.querySelectorAll(".vrf-b").forEach(x=>{
+        const on = x.dataset.v===verdict;
+        x.classList.toggle("on", on);
+        x.classList.toggle("correct", on && x.dataset.v==="correct");
+        x.classList.toggle("incorrect", on && x.dataset.v==="incorrect");
+        x.setAttribute("aria-pressed", String(on));
+      });
+      refreshVerifiedCount();
+    }catch(err){
+      const msg = document.createElement("div");
+      msg.className = "vrf-err";
+      msg.textContent = "Could not save that: " + (err.message || err);
+      group.after(msg);
+      setTimeout(()=>msg.remove(), 4000);
+    }finally{
+      group.querySelectorAll(".vrf-b").forEach(x=>x.disabled=false);
+    }
+  });
+
   d.querySelector("#copy").onclick=e=>{navigator.clipboard?.writeText(m.path);e.target.textContent="Copied";
     setTimeout(()=>e.target.textContent="Copy image path",1400)};
 }
@@ -531,7 +615,7 @@ mq.addEventListener("change",e=>{ if(!e.matches) closeSheet(); });
 /* keep the bottom bar in step with the current query */
 function syncMobileBar(total){
   const n = state.bio.length + state.trial.length + state.eye.length + state.visit.length
-          + state.source.length + (state.q?1:0)
+          + state.source.length + (state.verified?1:0) + (state.q?1:0)
           + ["bcva_min","bcva_max","cst_min","cst_max"].filter(k=>state[k]!=="").length;
   const badge=$("#mb-count");
   badge.textContent=n; badge.hidden = n===0;
@@ -544,10 +628,10 @@ function syncMobileBar(total){
 
 $("#search").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.page=1;load()};
 $("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load({noFacets:true})};
-$("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],source:[],
+$("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],source:[],verified:false,
   bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
 
-load();
+initVerify().then(load);
 </script>
 </body>
 </html>
