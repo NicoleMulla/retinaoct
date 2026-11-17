@@ -165,13 +165,15 @@ const VERIFY_ASKED = new URLSearchParams(location.search).get("mode") === "verif
 let verifyOn = false;
 
 async function initVerify(){
-  await refreshVerifiedCount();          // the filter is shown in every mode
   if(!VERIFY_ASKED) return;
   try{
     const r = await fetch("/api/config", { cache:"no-store" });
     verifyOn = r.ok && (await r.json()).verification === true;
   }catch{ verifyOn = false; }
-  if(verifyOn) document.body.classList.add("verify-mode");
+  if(verifyOn){
+    document.body.classList.add("verify-mode");
+    await refreshVerifiedCount();
+  }
 }
 
 const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], source:[], verified:false,
@@ -194,7 +196,9 @@ function qs(opts={}){
   if(state.q) u.set("q",state.q);
   for(const k of ["trial","eye","visit","bio"]) if(state[k].length) u.set(k,state[k].join(","));
   if(state.source.length) u.set("source",state.source.join(","));
-  if(state.verified) u.set("verified","1");
+  // Guarded by verifyOn, not by state alone: without this a hand-typed
+  // ?verified=1 would still list the reviewed images outside the mode.
+  if(state.verified && verifyOn) u.set("verified","1");
   for(const k of ["bcva_min","bcva_max","cst_min","cst_max"]) if(state[k]!=="") u.set(k,state[k]);
   u.set("sort",state.sort); u.set("page",state.page); u.set("per_page",PER); u.set("v",API_V);
   if(opts.noFacets) u.set("facets","0");
@@ -314,7 +318,7 @@ function renderFacets(f,total){
     group("bio",ICON.bio,"Biomarkers",`<div class="opts" id="bio-opts">
         <label class="opt"><input type="checkbox" data-src="expert" ${state.source.includes("expert")?"checked":""}><span>Doctor annotated images</span><span class="n">${fmt(f.labelled)}</span></label>
         <label class="opt"><input type="checkbox" data-src="model" ${state.source.includes("model")?"checked":""}><span>Machine annotated images</span><span class="n">${fmt(f.modelled)}</span></label>
-        <label class="opt"><input type="checkbox" id="verified-only" ${state.verified?"checked":""}><span>Verified images</span><span class="n" id="verified-n">${fmt(verifiedCount)}</span></label>
+        ${verifyOn?`<label class="opt"><input type="checkbox" id="verified-only" ${state.verified?"checked":""}><span>Verified images</span><span class="n" id="verified-n">${fmt(verifiedCount)}</span></label>`:""}
         ${bioRows||'<span style="font-size:12px;color:var(--faint)">none in this selection</span>'}</div>`)
   + group("trial",ICON.trial,"Clinical trial",`<div class="opts">${
       f.trial.map(t=>opt("trial",t.v,t.v==="TREX_DME"?"TREX-DME":"PRIME",t.n,state.trial.includes(t.v))).join("")}</div>`)
