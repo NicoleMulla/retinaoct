@@ -165,6 +165,7 @@ const VERIFY_ASKED = new URLSearchParams(location.search).get("mode") === "verif
 let verifyOn = false;
 
 async function initVerify(){
+  await refreshVerifiedCount();          // the filter is shown in every mode
   if(!VERIFY_ASKED) return;
   try{
     const r = await fetch("/api/config", { cache:"no-store" });
@@ -194,7 +195,6 @@ function qs(opts={}){
   for(const k of ["trial","eye","visit","bio"]) if(state[k].length) u.set(k,state[k].join(","));
   if(state.source.length) u.set("source",state.source.join(","));
   if(state.verified) u.set("verified","1");
-  if(verifyOn) u.set("verified_count","1");   // the sidebar count, only in this mode
   for(const k of ["bcva_min","bcva_max","cst_min","cst_max"]) if(state[k]!=="") u.set(k,state[k]);
   u.set("sort",state.sort); u.set("page",state.page); u.set("per_page",PER); u.set("v",API_V);
   if(opts.noFacets) u.set("facets","0");
@@ -217,19 +217,23 @@ async function errText(r, fallback){
   return fallback || `Search failed (${r.status}).`;
 }
 
-/* After a verdict the "Verified images" count is stale. Re-reading the whole
-   grid would close the detail panel mid-review, so only the number is fetched
-   and written back in place. */
+/* The "Verified images" count. Its own endpoint, so /api/search stays
+   edge-cacheable — a filtered search costs ~400,000 D1 row reads and must not
+   be uncached just to keep a small number current. Fetched once at startup and
+   again after each verdict, so the sidebar moves as a reviewer works without
+   re-rendering the grid and closing the open scan. */
+let verifiedCount = 0;
+
 async function refreshVerifiedCount(){
-  if(!verifyOn) return;
   try{
-    const r = await fetch("/api/search?per_page=1&verified_count=1&v="+API_V+"&t="+Date.now(),
-                          { cache:"no-store" });
+    const r = await fetch("/api/verified-count?t="+Date.now(), { cache:"no-store" });
     if(!r.ok) return;
-    const n = ((await r.json()).facets || {}).verified;
-    const el = $("#verified-only");
-    if(el && n != null) el.parentElement.querySelector(".n").textContent = fmt(n);
-  }catch{ /* the count is cosmetic; a failure here changes nothing recorded */ }
+    const n = (await r.json()).verified;
+    if(n == null) return;
+    verifiedCount = n;
+    const el = $("#verified-n");
+    if(el) el.textContent = fmt(n);
+  }catch{ /* cosmetic; a failure here changes nothing that was recorded */ }
 }
 
 async function load(opts={}){
@@ -310,7 +314,7 @@ function renderFacets(f,total){
     group("bio",ICON.bio,"Biomarkers",`<div class="opts" id="bio-opts">
         <label class="opt"><input type="checkbox" data-src="expert" ${state.source.includes("expert")?"checked":""}><span>Doctor annotated images</span><span class="n">${fmt(f.labelled)}</span></label>
         <label class="opt"><input type="checkbox" data-src="model" ${state.source.includes("model")?"checked":""}><span>Machine annotated images</span><span class="n">${fmt(f.modelled)}</span></label>
-        ${verifyOn?`<label class="opt"><input type="checkbox" id="verified-only" ${state.verified?"checked":""}><span>Verified images</span><span class="n">${fmt(f.verified||0)}</span></label>`:""}
+        <label class="opt"><input type="checkbox" id="verified-only" ${state.verified?"checked":""}><span>Verified images</span><span class="n" id="verified-n">${fmt(verifiedCount)}</span></label>
         ${bioRows||'<span style="font-size:12px;color:var(--faint)">none in this selection</span>'}</div>`)
   + group("trial",ICON.trial,"Clinical trial",`<div class="opts">${
       f.trial.map(t=>opt("trial",t.v,t.v==="TREX_DME"?"TREX-DME":"PRIME",t.n,state.trial.includes(t.v))).join("")}</div>`)

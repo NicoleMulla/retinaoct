@@ -22,8 +22,7 @@ export async function onRequestGet(ctx) {
   // a 24-hour edge copy would hide it. This is a handful of requests during a
   // review session, so the lost caching costs nothing.
   const u = new URL(request.url);
-  const live = u.searchParams.get("verified") === "1"
-            || u.searchParams.get("verified_count") === "1";
+  const live = u.searchParams.get("verified") === "1";
 
   const cache = caches.default;
   if (!live) {
@@ -59,8 +58,6 @@ async function handle({ request, env }) {
     const page = Math.max(parseInt(url.searchParams.get("page")) || 1, 1);
     const order = SORTS[url.searchParams.get("sort")] || SORTS.relevant;
     const wantFacets = url.searchParams.get("facets") !== "0";
-    // Only in verification mode, so an ordinary search never pays for it.
-    const wantVerified = url.searchParams.get("verified_count") === "1";
     const debug = url.searchParams.get("debug") === "1" ? {} : null;
 
     const rowsQ = env.DB.prepare(
@@ -78,12 +75,11 @@ async function handle({ request, env }) {
       ]);
       const f = JSON.parse(g.payload);
       auditRows(rows.meta, "results_default_sort", debug);
-      const verified = wantVerified ? await countVerified(env, debug) : null;
       return json({
         total: f.total,                  // always present: the pager depends on it
         page, per_page: per,
         results: rows.results,
-        facets: wantFacets ? { ...shape(f), ...(verified === null ? {} : { verified }) } : null,
+        facets: wantFacets ? shape(f) : null,
         ...(debug ? { _rows_read: debug } : {}),
       }, 3600);
     }
@@ -133,7 +129,6 @@ async function handle({ request, env }) {
       return limit ? out.slice(0, limit) : out;
     };
     const fBio = fBioQ ? fBioQ.results[0] : null;
-    const verified = wantVerified ? await countVerified(env, debug) : null;
 
     return json({
       total,
@@ -144,7 +139,6 @@ async function handle({ request, env }) {
         trial: facet("trial"),
         eye: facet("eye"),
         visit: facet("visit", 20),
-        ...(verified === null ? {} : { verified }),
         labelled: fBio ? fBio.labelled || 0 : 0,
         modelled: fBio ? fBio.modelled || 0 : 0,
         biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio ? fBio[k] || 0 : 0 }))
@@ -195,19 +189,6 @@ function auditRows(meta, label, debug) {
   }
   if (debug) debug[label] = read;
   return read;
-}
-
-/** How many distinct images carry at least one verdict. */
-async function countVerified(env, debug) {
-  try {
-    const q = await env.DB.prepare(
-      "SELECT COUNT(DISTINCT image_id) AS n FROM verifications"
-    ).all();
-    auditRows(q.meta, "verified_count", debug);
-    return q.results[0].n;
-  } catch {
-    return 0;   // table not created yet, or reads exhausted
-  }
 }
 
 function json(body, maxAge) {
