@@ -7,15 +7,19 @@
  *
  * Costs no GPU: /api/warm asks for the Space root, never an inference path.
  */
-const TARGET = "https://retinaoct.com/api/warm";
+// wait=1 so the request is held for the whole boot. Without it the call
+// returns in ~0.2s and the wake is left to waitUntil, which is cut short
+// before HuggingFace finishes -- enough to keep a running Space awake, never
+// enough to bring a sleeping one back.
+const TARGET = "https://retinaoct.com/api/warm?wait=1";
 
 async function poke() {
   const started = Date.now();
   try {
-    const r = await fetch(`${TARGET}?src=cron`, {
+    const r = await fetch(`${TARGET}&src=cron`, {
       method: "GET",
       headers: { "user-agent": "retinaoct-keepwarm/1.0" },
-      signal: AbortSignal.timeout(60000),
+      signal: AbortSignal.timeout(120000),
     });
     console.log(`warm ${r.status} in ${Date.now() - started}ms`);
     return r.ok;

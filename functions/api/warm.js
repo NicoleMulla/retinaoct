@@ -66,10 +66,21 @@ export async function onRequest({ env, waitUntil, request }) {
     cf: { cacheTtl: 0, cacheEverything: false },
     signal: AbortSignal.timeout(90000),
   });
-  // ?debug=1 waits for the poke and reports what came back, so a failure to
-  // wake can be diagnosed without guessing. It does not leak the endpoint:
-  // only the host, status and timing.
-  if (new URL(request.url).searchParams.get("debug") === "1") {
+  // ?wait=1 holds the request open until HuggingFace answers, instead of
+  // handing the fetch to waitUntil and returning at once.
+  //
+  // This distinction turned out to matter. Keeping an already-running Space
+  // awake needs only a quick request. WAKING a sleeping one needs the
+  // connection held for the whole boot -- measured at 35s -- and waitUntil is
+  // cut short well before that, so the fire-and-forget path could keep the
+  // model warm but could never recover it once it had slept. The scheduled
+  // job therefore asks with wait=1.
+  //
+  // ?debug=1 does the same and additionally reports what came back, so a
+  // failure to wake can be diagnosed without guessing. It leaks nothing about
+  // the endpoint beyond its host, status and timing.
+  const q = new URL(request.url).searchParams;
+  if (q.get("debug") === "1" || q.get("wait") === "1") {
     const t0 = Date.now();
     let status = null, ctype = null, cf = null, err = null, bytes = null;
     try {
@@ -81,10 +92,14 @@ export async function onRequest({ env, waitUntil, request }) {
         bytes = (await r.text()).length;
       }
     } catch (e) { err = String(e && e.name || e); }
-    return Response.json({
-      host: new URL(url).host, status, ctype, cf_cache: cf, bytes, err,
-      elapsed_ms: Date.now() - t0,
-    }, { headers: { "cache-control": "no-store" } });
+    const body = q.get("debug") === "1"
+      ? { host: new URL(url).host, status, ctype, cf_cache: cf, bytes, err,
+          elapsed_ms: Date.now() - t0 }
+      : { poked: true, status, err, elapsed_ms: Date.now() - t0 };
+    return Response.json(body, {
+      status: err || (status && status >= 500) ? 502 : 200,
+      headers: { "cache-control": "no-store" },
+    });
   }
 
   if (waitUntil) waitUntil(poke.catch(() => {}));
