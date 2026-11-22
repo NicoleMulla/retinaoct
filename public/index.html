@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b1836">
 <title>Retina OCT — searchable OCT image atlas</title>
 <meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations, model-inferred predictions, and clinical metadata.">
-<link rel="stylesheet" href="styles.css?v=70bac354">
+<link rel="stylesheet" href="styles.css?v=fc3a6cf8">
 <link rel="icon" href="favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -161,8 +161,26 @@ const API_V = "2";           // bump to bypass stale cached API responses
    backend switch on. With the switch off the link is inert — the page behaves
    exactly as it does without the parameter, which is the point of having a
    server-side toggle rather than a client-side one. */
-const VERIFY_ASKED = new URLSearchParams(location.search).get("mode") === "verification";
+/* Verification needs THREE things: the mode parameter, a named reviewer, and
+   the backend switch. The reviewer is required because an unattributed verdict
+   cannot be compared with anyone else's, so there is no useful "anonymous"
+   review — and requiring it in the URL means nobody can start reviewing
+   without having decided who they are. */
+const VERIFY_Q = new URLSearchParams(location.search);
+const REVIEWER = (VERIFY_Q.get("reviewer") || "").trim();
+const VERIFY_ASKED = VERIFY_Q.get("mode") === "verification"
+                  && /^[A-Za-z0-9._-]{2,64}$/.test(REVIEWER);
 let verifyOn = false;
+
+/* Say whose name the verdicts are being recorded under. Without this a
+   reviewer has no way to notice they are logged as someone else, and the
+   verdicts would be mis-attributed with nothing on screen to catch it. */
+function showReviewerBadge(){
+  const host=$("#chips");
+  if(!host || $("#rev-badge")) return;
+  host.insertAdjacentHTML("beforebegin",
+    `<div id="rev-badge" class="rev-badge">Reviewing as <b>${esc(REVIEWER)}</b></div>`);
+}
 
 async function initVerify(){
   if(!VERIFY_ASKED) return;
@@ -172,14 +190,26 @@ async function initVerify(){
   }catch{ verifyOn = false; }
   if(verifyOn){
     document.body.classList.add("verify-mode");
+    showReviewerBadge();
     await refreshVerifiedCount();
   }
 }
 
 const state = { q:"", sort:"relevant", page:1, trial:[], eye:[], visit:[], bio:[], source:[], verified:false,
+  trial_not:[], eye_not:[], visit_not:[], bio_not:[],
                 bcva_min:"", bcva_max:"", cst_min:"", cst_max:"", sel:null };
 const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
 const fmt = n => (n ?? 0).toLocaleString();
+/* Facet labels seen so far, kept because a filtered response only lists
+   values present in the current selection. Negating a biomarker takes its
+   count to zero, which would otherwise erase both its sidebar row and its
+   name. */
+const LABELS_SEEN = new Map();
+/* Facet labels come from the database and the reviewer name from the URL, so
+   both are escaped before they reach an attribute or innerHTML. */
 const imgUrl = k => IMG_BASE && k ? IMG_BASE.replace(/\/$/,"") + "/" + k : null;
 // Downloads get a stable descriptive filename rather than the B2 object key.
 // The extension comes from the key so the bytes and the name always agree.
@@ -194,7 +224,10 @@ const DL_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" ari
 function qs(opts={}){
   const u=new URLSearchParams();
   if(state.q) u.set("q",state.q);
-  for(const k of ["trial","eye","visit","bio"]) if(state[k].length) u.set(k,state[k].join(","));
+  for(const k of ["trial","eye","visit","bio"]){
+    if(state[k].length) u.set(k,state[k].join(","));
+    if(state[k+"_not"].length) u.set(k+"_not",state[k+"_not"].join(","));
+  }
   if(state.source.length) u.set("source",state.source.join(","));
   // Guarded by verifyOn, not by state alone: without this a hand-typed
   // ?verified=1 would still list the reviewed images outside the mode.
@@ -204,10 +237,60 @@ function qs(opts={}){
   if(opts.noFacets) u.set("facets","0");
   return u.toString();
 }
-function toggle(key,val){
-  const a=state[key], i=a.indexOf(val);
-  i<0 ? a.push(val) : a.splice(i,1);
+/* One menu element for the whole page, moved to whichever ⋯ was pressed.
+   Rendered on demand rather than one hidden menu per row, which would be ~30
+   dormant popups in the sidebar. */
+let optMenuEl=null;
+function closeOptMenu(){
+  if(!optMenuEl) return;
+  const owner=document.querySelector('.optmenu[aria-expanded="true"]');
+  if(owner) owner.setAttribute("aria-expanded","false");
+  optMenuEl.remove(); optMenuEl=null;
+}
+function openOptMenu(btn){
+  const was = btn.getAttribute("aria-expanded")==="true";
+  closeOptMenu();
+  if(was) return;                       // pressing the same ⋯ again closes it
+  const key=btn.dataset.key, val=btn.dataset.val, m=modeOf(key,val);
+  optMenuEl=document.createElement("div");
+  optMenuEl.className="optmenu-pop";
+  optMenuEl.setAttribute("role","menu");
+  optMenuEl.innerHTML =
+    `<button role="menuitem" data-act="not">${m==="not"?"Remove negation":"Negate filter"}</button>`
+    + (m ? `<button role="menuitem" data-act="clear">Clear filter</button>` : "");
+  document.body.appendChild(optMenuEl);
+  const r=btn.getBoundingClientRect(), mw=optMenuEl.offsetWidth;
+  // Keep it on screen on a narrow viewport rather than hanging off the right.
+  optMenuEl.style.top  = `${Math.round(r.bottom+window.scrollY+4)}px`;
+  optMenuEl.style.left = `${Math.round(Math.max(8, Math.min(r.right-mw, window.innerWidth-mw-8)))}px`;
+  btn.setAttribute("aria-expanded","true");
+  optMenuEl.querySelectorAll("button").forEach(x=>x.onclick=ev=>{
+    ev.stopPropagation();
+    const act=x.dataset.act;
+    closeOptMenu();
+    setMode(key,val, act==="not" ? (m==="not" ? "" : "not") : "");
+  });
+}
+document.addEventListener("click", closeOptMenu);
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeOptMenu(); });
+
+/* A facet value is in one of three states: off, included, or negated.
+   The checkbox moves between off and included; the ⋯ menu reaches negated.
+   Clicking the box of a negated value clears it rather than flipping it to
+   included, because the box is the "undo" affordance in both directions. */
+function modeOf(key,val){
+  return state[key].includes(val) ? "on"
+       : state[key+"_not"].includes(val) ? "not" : "";
+}
+function setMode(key,val,mode){
+  const drop=(arr)=>{ const i=arr.indexOf(val); if(i>=0) arr.splice(i,1); };
+  drop(state[key]); drop(state[key+"_not"]);
+  if(mode==="on") state[key].push(val);
+  else if(mode==="not") state[key+"_not"].push(val);
   state.page=1; load();
+}
+function toggle(key,val){
+  setMode(key,val, modeOf(key,val) ? "" : "on");
 }
 
 // The API returns {error:"quota"} with a 503 when the database's daily read
@@ -310,10 +393,41 @@ const ICON={
 };
 
 function renderFacets(f,total){
-  const opt=(key,val,label,n,checked)=>`<label class="opt"><input type="checkbox" data-key="${key}" data-val="${val}" ${checked?"checked":""}><span>${label}</span><span class="n">${fmt(n)}</span></label>`;
-  const bioRows=f.biomarkers.map(b=>opt("bio",b.key,b.label,b.count,state.bio.includes(b.key))).join("");
-  const visits=f.visit.slice(0,8).map(v=>opt("visit",v.v,v.v,v.n,state.visit.includes(v.v))).join("");
+  /* The ⋯ button sits OUTSIDE the <label>. A button nested inside a label
+     still forwards its click to the checkbox in every browser, so the menu
+     would toggle the very filter it is offering to negate. */
+  const opt=(key,val,label,n)=>{
+    const m=modeOf(key,val);
+    return `<div class="opt-row${m==="not"?" neg":""}">
+      <label class="opt"><input type="checkbox" data-key="${key}" data-val="${val}" ${m?"checked":""}>
+        <span>${label}${m==="not"?`<em class="negtag">Not</em>`:""}</span>
+        <span class="n">${fmt(n)}</span></label>
+      <button class="optmenu" data-key="${key}" data-val="${val}" data-label="${esc(label)}"
+        aria-label="Options for ${esc(label)}" aria-haspopup="menu" aria-expanded="false">\u22ef</button>
+    </div>`;
+  };
+  f.biomarkers.forEach(b=>LABELS_SEEN.set("bio:"+b.key, b.label));
 
+  /* Build a facet's rows with anything selected pulled to the top, including
+     values the current result set no longer contains.
+
+     Both halves are needed. Negating a biomarker removes it from the results,
+     so it vanishes from the facet counts and its row would disappear — the
+     control you just used, gone, with only the chip to undo it. And appending
+     it instead would bury it under sixteen others, so the row you are working
+     with scrolls out of sight. Selected first, at zero if need be. */
+  const rowsFor=(key,items,label)=>{
+    const chosen=[...state[key],...state[key+"_not"]];
+    const seen=items.map(i=>i.v);
+    const all=[...chosen.filter(v=>!seen.includes(v)).map(v=>({v,n:0})), ...items];
+    all.sort((a,b)=>(chosen.includes(b.v)?1:0)-(chosen.includes(a.v)?1:0));
+    return all.map(i=>opt(key,i.v,label(i.v),i.n)).join("");
+  };
+
+  const bioRows=rowsFor("bio",
+    f.biomarkers.map(b=>({v:b.key,n:b.count})),
+    v=>LABELS_SEEN.get("bio:"+v)||v);
+  const visits=rowsFor("visit", f.visit.slice(0,8).map(v=>({v:v.v,n:v.n})), v=>v);
   $("#groups").innerHTML =
     group("bio",ICON.bio,"Biomarkers",`<div class="opts" id="bio-opts">
         <label class="opt"><input type="checkbox" data-src="expert" ${state.source.includes("expert")?"checked":""}><span>Doctor annotated images</span><span class="n">${fmt(f.labelled)}</span></label>
@@ -321,9 +435,11 @@ function renderFacets(f,total){
         ${verifyOn?`<label class="opt"><input type="checkbox" id="verified-only" ${state.verified?"checked":""}><span>Verified images</span><span class="n" id="verified-n">${fmt(verifiedCount)}</span></label>`:""}
         ${bioRows||'<span style="font-size:12px;color:var(--faint)">none in this selection</span>'}</div>`)
   + group("trial",ICON.trial,"Clinical trial",`<div class="opts">${
-      f.trial.map(t=>opt("trial",t.v,t.v==="TREX_DME"?"TREX-DME":"PRIME",t.n,state.trial.includes(t.v))).join("")}</div>`)
+      rowsFor("trial", f.trial.map(t=>({v:t.v,n:t.n})),
+        v=>v==="TREX_DME"?"TREX-DME":"PRIME")}</div>`)
   + group("eye",ICON.eye,"Eye",`<div class="opts">${
-      f.eye.map(e=>opt("eye",e.v,e.v==="OD"?"Right eye (OD)":"Left eye (OS)",e.n,state.eye.includes(e.v))).join("")}</div>`)
+      rowsFor("eye", f.eye.map(e=>({v:e.v,n:e.n})),
+        v=>v==="OD"?"Right eye (OD)":"Left eye (OS)")}</div>`)
   + group("visit",ICON.cal,"Visit",`<div class="opts">${visits}</div>`,false)
   + group("cst",ICON.num,"Central subfield thickness (µm)",
       `<div class="rng"><input id="cst_min" type="number" placeholder="min" value="${state.cst_min}">
@@ -335,6 +451,10 @@ function renderFacets(f,total){
   $("#groups").querySelectorAll('input[type=checkbox][data-key]').forEach(el=>{
     el.onchange=()=>toggle(el.dataset.key,el.dataset.val);
   });
+  $("#groups").querySelectorAll(".optmenu").forEach(b=>b.onclick=e=>{
+    e.preventDefault(); e.stopPropagation();
+    openOptMenu(b);
+  });
   $("#groups").querySelectorAll("input[data-src]").forEach(el=>{
     el.onchange=()=>toggle("source",el.dataset.src);
   });
@@ -345,10 +465,15 @@ function renderFacets(f,total){
   }
 
   const labels={trial:v=>v==="TREX_DME"?"TREX-DME":"PRIME",eye:v=>v==="OD"?"Right eye":"Left eye",
-                visit:v=>"Visit "+v,bio:v=>(f.biomarkers.find(b=>b.key===v)||{}).label||v};
+                visit:v=>"Visit "+v,
+                bio:v=>(f.biomarkers.find(b=>b.key===v)||{}).label||LABELS_SEEN.get("bio:"+v)||v};
   let chips=[];
-  for(const k of ["bio","trial","eye","visit"])
-    for(const v of state[k]) chips.push(`<span class="chip">${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
+  for(const k of ["bio","trial","eye","visit"]){
+    for(const v of state[k])
+      chips.push(`<span class="chip">${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
+    for(const v of state[k+"_not"])
+      chips.push(`<span class="chip neg">Not ${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
+  }
   for(const v of state.source) chips.push(`<span class="chip">${
     v==="expert"?"Doctor annotated":"Machine annotated"}<button data-k="source" data-v="${v}">✕</button></span>`);
   if(state.verified) chips.push(`<span class="chip">Verified images<button data-k="verified">✕</button></span>`);
@@ -356,10 +481,10 @@ function renderFacets(f,total){
   $("#chips").innerHTML=chips.join("");
   $("#chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{
     const k=b.dataset.k;
-    if(k==="verified"){state.verified=false}
-    else if(k==="q"){state.q="";$("#q").value=""}
-    else toggle(k,b.dataset.v);
-    state.page=1; load();
+    if(k==="verified"){state.verified=false; state.page=1; load();}
+    else if(k==="q"){state.q=""; $("#q").value=""; state.page=1; load();}
+    else if(k==="source"){toggle(k,b.dataset.v);}
+    else setMode(k,b.dataset.v,"");   // clears whichever list it was in
   });
 }
 
@@ -477,7 +602,7 @@ function modelFoot(m){
 }
 
   if(isMobile()) openSheet($("#detail"));
-  const r=await fetch("/api/image/"+id+"?v="+API_V+(verifyOn?"&verify=1":""));
+  const r=await fetch("/api/image/"+id+"?v="+API_V+(verifyOn?"&verify=1&reviewer="+encodeURIComponent(REVIEWER):""));
   if(!r.ok){ d.innerHTML=`<div class="empty">${await errText(r, `Could not load image ${id}.`)}</div>`; return; }
   const m=await r.json();
   const u=imgUrl(m.full_key);
@@ -537,6 +662,7 @@ d.querySelectorAll(".vrf-b").forEach(btn=>btn.onclick=async ()=>{
       const r = await fetch("/api/verify", {
         method:"POST", headers:{"content-type":"application/json"},
         body: JSON.stringify({ image_id:m.id, biomarker:btn.dataset.bio, verdict,
+                               reviewer: REVIEWER,
                                shown_present: btn.dataset.present==="1",
                                source: btn.dataset.src || null }) });
       if(!r.ok) throw new Error((await r.json().catch(()=>({}))).error || ("HTTP "+r.status));
@@ -637,6 +763,7 @@ mq.addEventListener("change",e=>{ if(!e.matches) closeSheet(); });
 /* keep the bottom bar in step with the current query */
 function syncMobileBar(total){
   const n = state.bio.length + state.trial.length + state.eye.length + state.visit.length
+          + state.bio_not.length + state.trial_not.length + state.eye_not.length + state.visit_not.length
           + state.source.length + (state.verified?1:0) + (state.q?1:0)
           + ["bcva_min","bcva_max","cst_min","cst_max"].filter(k=>state[k]!=="").length;
   const badge=$("#mb-count");
@@ -651,6 +778,7 @@ function syncMobileBar(total){
 $("#search").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.page=1;load()};
 $("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load({noFacets:true})};
 $("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],source:[],verified:false,
+  trial_not:[],eye_not:[],visit_not:[],bio_not:[],
   bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
 
 initVerify().then(load);

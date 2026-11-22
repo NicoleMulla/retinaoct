@@ -36,16 +36,40 @@ export function buildFilter(url) {
   const where = [], bind = [];
   const list = (n) => (p.get(n) || "").split(",").map(s => s.trim()).filter(Boolean);
 
+  /* Every facet can be included or EXCLUDED. `trial=PRIME` keeps PRIME;
+     `trial_not=PRIME` keeps everything else. Several negated values exclude
+     all of them, so `bio_not=a,b` means "neither a nor b" — negation reads as
+     AND where inclusion reads as OR, which is what "exclude these" means to
+     someone ticking boxes.
+
+     COALESCE on the column, not a bare NOT IN: SQL's NOT IN evaluates to NULL
+     rather than true when the column is NULL, so a row with no trial recorded
+     would silently vanish from "not PRIME" instead of being kept. */
+  const excl = (col, vals) =>
+    `COALESCE(${col},'') NOT IN (${vals.map(() => "?").join(",")})`;
+
   const trials = list("trial");
   if (trials.length) { where.push(`i.trial IN (${trials.map(() => "?").join(",")})`); bind.push(...trials); }
+  const trialsNot = list("trial_not");
+  if (trialsNot.length) { where.push(excl("i.trial", trialsNot)); bind.push(...trialsNot); }
 
   const eyes = list("eye").filter(e => e === "OD" || e === "OS");
   if (eyes.length) { where.push(`i.eye IN (${eyes.map(() => "?").join(",")})`); bind.push(...eyes); }
+  const eyesNot = list("eye_not").filter(e => e === "OD" || e === "OS");
+  if (eyesNot.length) { where.push(excl("i.eye", eyesNot)); bind.push(...eyesNot); }
 
   const visits = list("visit");
   if (visits.length) { where.push(`i.visit IN (${visits.map(() => "?").join(",")})`); bind.push(...visits); }
+  const visitsNot = list("visit_not");
+  if (visitsNot.length) { where.push(excl("i.visit", visitsNot)); bind.push(...visitsNot); }
 
   for (const k of list("bio")) if (KEYS.has(k)) where.push(`b.${k} = 1`);
+  /* A negated biomarker cannot use the partial indexes from migration 003 —
+     those index only the rows where the flag is set, which is precisely the
+     rows this excludes — so it costs a scan of `biomarkers`. That is the same
+     order of cost as filtering on one of the unindexed common flags, and the
+     response is edge-cached for a day, so it is affordable rather than free. */
+  for (const k of list("bio_not")) if (KEYS.has(k)) where.push(`COALESCE(b.${k},0) = 0`);
 
   if (p.get("has_bio") === "1") where.push("i.has_biomarkers = 1");
 

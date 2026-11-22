@@ -15,14 +15,23 @@
  * in mind — turn it off when a review session is over, and treat the verdicts
  * as attributable to "someone", not to a named reviewer.
  *
- * Writes are capped per request to one row, and the primary key is
- * (image_id, biomarker), so repeated judging of the same biomarker replaces
- * rather than accumulates. D1's free tier allows 100,000 row writes a day.
+ * Every verdict carries a `reviewer`, and the primary key is
+ * (image_id, biomarker, reviewer). So one reviewer re-judging a biomarker
+ * replaces their own earlier call, while a second reviewer judging the same
+ * biomarker adds a row beside the first rather than overwriting it — which is
+ * what makes two reviewers comparable. D1's free tier allows 100,000 row
+ * writes a day.
  */
 import { BIOMARKERS } from "./_lib.js";
 
 const KEYS = new Set(BIOMARKERS.map(([k]) => k));
 const VERDICTS = new Set(["correct", "incorrect"]);
+
+/* Reviewer names are written by whoever holds the link, so they are
+   constrained rather than trusted: a slug of letters, digits, underscore,
+   hyphen and dot. That keeps them readable in a CSV export and keeps anything
+   script-shaped out of a field the UI renders. */
+const REVIEWER_RE = /^[A-Za-z0-9._-]{2,64}$/;
 
 const fail = (status, error, extra = {}) =>
   Response.json({ error, ...extra }, { status, headers: { "cache-control": "no-store" } });
@@ -62,12 +71,23 @@ export async function onRequestPost({ request, env }) {
     return fail(400, "verdict must be 'correct', 'incorrect' or null.", { code: "bad_verdict" });
   }
 
+  // Every verdict belongs to someone. No anonymous writes: an unattributed
+  // verdict cannot be compared against another reviewer's, which is the whole
+  // reason for recording who judged what.
+  const reviewer = String((body && body.reviewer) || "").trim();
+  if (!REVIEWER_RE.test(reviewer)) {
+    return fail(400, "A reviewer name is required (letters, digits, . _ - ; 2-64 characters).",
+                { code: "bad_reviewer" });
+  }
+
   try {
     if (verdict === null) {
+      // Scoped to this reviewer: clearing your own verdict must not remove
+      // another reviewer's on the same biomarker.
       await env.DB.prepare(
-        "DELETE FROM verifications WHERE image_id = ? AND biomarker = ?"
-      ).bind(id, biomarker).run();
-      return Response.json({ image_id: id, biomarker, verdict: null },
+        "DELETE FROM verifications WHERE image_id = ? AND biomarker = ? AND reviewer = ?"
+      ).bind(id, biomarker, reviewer).run();
+      return Response.json({ image_id: id, biomarker, reviewer, verdict: null },
                            { headers: { "cache-control": "no-store" } });
     }
 
@@ -76,19 +96,19 @@ export async function onRequestPost({ request, env }) {
     const shown = body && body.shown_present;
     const source = body && body.source;
     await env.DB.prepare(
-      `INSERT INTO verifications (image_id, biomarker, verdict, shown_present, source, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(image_id, biomarker) DO UPDATE SET
+      `INSERT INTO verifications (image_id, biomarker, reviewer, verdict, shown_present, source, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(image_id, biomarker, reviewer) DO UPDATE SET
          verdict = excluded.verdict,
          shown_present = excluded.shown_present,
          source = excluded.source,
          updated_at = excluded.updated_at`
-    ).bind(id, biomarker, verdict,
+    ).bind(id, biomarker, reviewer, verdict,
            shown == null ? null : (shown ? 1 : 0),
            source === "expert" || source === "model" ? source : null,
            new Date().toISOString()).run();
 
-    return Response.json({ image_id: id, biomarker, verdict },
+    return Response.json({ image_id: id, biomarker, reviewer, verdict },
                          { headers: { "cache-control": "no-store" } });
   } catch (e) {
     return fail(500, "Could not record that verdict.",

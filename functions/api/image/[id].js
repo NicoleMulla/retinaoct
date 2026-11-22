@@ -94,11 +94,15 @@ async function handle({ params, env, request }) {
   // Recorded verdicts for this scan, only when the grid asks in verification
   // mode. Keyed by biomarker so the UI can set each switch directly.
   let verdicts = null;
-  if (new URL(request.url).searchParams.get("verify") === "1") {
+  const vq = new URL(request.url).searchParams;
+  if (vq.get("verify") === "1") {
     try {
+      // Scoped to the named reviewer, so one reviewer's panel never shows
+      // another's calls as if they were their own.
+      const who = String(vq.get("reviewer") || "");
       const v = audit(await env.DB.prepare(
-        "SELECT biomarker, verdict FROM verifications WHERE image_id = ?"
-      ).bind(id).all(), "verifications", debug);
+        "SELECT biomarker, verdict FROM verifications WHERE image_id = ? AND reviewer = ?"
+      ).bind(id, who).all(), "verifications", debug);
       verdicts = Object.fromEntries(v.results.map(r => [r.biomarker, r.verdict]));
     } catch {
       verdicts = {};   // table absent; verification simply unavailable
