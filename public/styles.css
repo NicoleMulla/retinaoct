@@ -227,7 +227,7 @@ select{border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inher
 .pg{display:inline-flex;align-items:center;gap:6px;background:var(--surface);
   border:1px solid var(--line);border-radius:8px;padding:7px 11px;color:var(--body);
   font-variant-numeric:tabular-nums;min-width:36px;justify-content:center}
-.pg:hover:not(:disabled):not(.on){background:var(--canvas);border-color:var(--border-strong)}
+.pg:hover:not(:disabled):not(.on){background:var(--canvas);border-color:var(--muted)}
 .pg.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:600}
 .pg:disabled{opacity:.4;cursor:default}
 .pg.nav{padding:7px 13px}
@@ -644,7 +644,7 @@ footer{border-top:1px solid var(--line);padding-block:22px 34px;color:var(--fain
    two blocks of text per row competed with the image. */
 .vrf{display:flex;gap:5px;margin-left:10px;flex:0 0 auto}
 .vrf-b{display:grid;place-items:center;width:26px;height:26px;padding:0;
-  border-radius:6px;border:1px solid var(--line);background:var(--card);
+  border-radius:6px;border:1px solid var(--line);background:var(--surface);
   color:var(--faint);cursor:pointer;
   transition:background .12s,color .12s,border-color .12s}
 .vrf-b svg{width:15px;height:15px;display:block}
@@ -690,7 +690,7 @@ body.verify-mode .vrf{margin-left:0}
 .opt-row.neg input{accent-color:#b42318}
 
 .optmenu-pop{position:absolute;z-index:60;min-width:150px;padding:4px;
-  background:var(--card);border:1px solid var(--line);border-radius:8px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
   box-shadow:0 8px 24px rgba(16,24,40,.14)}
 .optmenu-pop button{display:block;width:100%;text-align:left;font:inherit;
   font-size:12.5px;padding:7px 9px;border:0;border-radius:5px;background:none;
