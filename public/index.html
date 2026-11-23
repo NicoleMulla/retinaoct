@@ -278,15 +278,22 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeOptMenu(); }
    The checkbox moves between off and included; the ⋯ menu reaches negated.
    Clicking the box of a negated value clears it rather than flipping it to
    included, because the box is the "undo" affordance in both directions. */
+/* Not every facet is negatable. `source` has no `source_not` list, because
+   "not doctor annotated" is just the other checkbox — and reading a missing
+   list threw, which killed the handler and left the two annotation filters
+   doing nothing at all when clicked. Read through a helper that tolerates
+   its absence rather than assuming every key has a pair. */
+const notList = key => state[key+"_not"] || [];
+
 function modeOf(key,val){
   return state[key].includes(val) ? "on"
-       : state[key+"_not"].includes(val) ? "not" : "";
+       : notList(key).includes(val) ? "not" : "";
 }
 function setMode(key,val,mode){
   const drop=(arr)=>{ const i=arr.indexOf(val); if(i>=0) arr.splice(i,1); };
-  drop(state[key]); drop(state[key+"_not"]);
+  drop(state[key]); drop(notList(key));
   if(mode==="on") state[key].push(val);
-  else if(mode==="not") state[key+"_not"].push(val);
+  else if(mode==="not" && state[key+"_not"]) state[key+"_not"].push(val);
   state.page=1; load();
 }
 function toggle(key,val){
@@ -417,7 +424,7 @@ function renderFacets(f,total){
      it instead would bury it under sixteen others, so the row you are working
      with scrolls out of sight. Selected first, at zero if need be. */
   const rowsFor=(key,items,label)=>{
-    const chosen=[...state[key],...state[key+"_not"]];
+    const chosen=[...state[key],...notList(key)];
     const seen=items.map(i=>i.v);
     const all=[...chosen.filter(v=>!seen.includes(v)).map(v=>({v,n:0})), ...items];
     all.sort((a,b)=>(chosen.includes(b.v)?1:0)-(chosen.includes(a.v)?1:0));
@@ -471,7 +478,7 @@ function renderFacets(f,total){
   for(const k of ["bio","trial","eye","visit"]){
     for(const v of state[k])
       chips.push(`<span class="chip">${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
-    for(const v of state[k+"_not"])
+    for(const v of notList(k))
       chips.push(`<span class="chip neg">Not ${labels[k](v)}<button data-k="${k}" data-v="${v}">✕</button></span>`);
   }
   for(const v of state.source) chips.push(`<span class="chip">${
