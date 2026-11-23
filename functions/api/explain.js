@@ -32,12 +32,61 @@ function toBase64(bytes) {
 const fail = (status, error, extra = {}) =>
   Response.json({ error, ...extra }, { status, headers: { "cache-control": "no-store" } });
 
+/**
+ * Fetch an atlas scan by id, for explaining an image already in the corpus
+ * rather than one someone uploaded.
+ *
+ * Goes through our own /img/ route instead of reaching into B2 here: that
+ * route already holds the read-only bucket key and an edge cache, and
+ * duplicating either would mean a second copy to keep correct.
+ *
+ * Refuses anything not model-labelled. On an expert-annotated scan the
+ * biomarkers on screen are a clinician's judgement, not the model's, so an
+ * influence map would answer a question nobody asked — and showing one beside
+ * a human annotation implies the model produced it.
+ */
+async function fetchAtlasImage(env, request, id) {
+  const row = await env.DB.prepare(
+    "SELECT full_key, label_source FROM images WHERE id = ?"
+  ).bind(id).first();
+  if (!row) return { err: fail(404, "No such image.", { code: "not_found" }) };
+  if (row.label_source !== "model") {
+    return { err: fail(409,
+      "Influence maps explain the model's own predictions, and this scan's "
+      + "biomarkers are expert annotations.", { code: "not_model_labelled" }) };
+  }
+  if (!row.full_key) return { err: fail(404, "That scan has no image file.", { code: "no_file" }) };
+
+  const src = new URL("/img/" + row.full_key, request.url);
+  const r = await fetch(src.toString(), { headers: { accept: "image/*" } });
+  if (!r.ok) return { err: fail(502, "Could not read that scan.", { code: "image_unavailable" }) };
+  return { buf: new Uint8Array(await r.arrayBuffer()) };
+}
+
 export async function onRequestPost({ request, env }) {
   if (!env.HF_ENDPOINT_URL || !env.HF_TOKEN) {
     return fail(503, "Explanations are not configured on this deployment yet.",
                 { code: "not_configured" });
   }
-  const buf = new Uint8Array(await request.arrayBuffer());
+
+  /* Two ways in: raw image bytes (an upload from /analyze) or
+     {"image_id": N} for a scan already in the atlas. */
+  let buf;
+  if ((request.headers.get("content-type") || "").includes("json")) {
+    let body;
+    try { body = await request.json(); }
+    catch { return fail(400, "Expected a JSON body.", { code: "bad_json" }); }
+    const id = parseInt(body && body.image_id, 10);
+    if (!Number.isInteger(id) || id < 1) {
+      return fail(400, "image_id must be a positive integer.", { code: "bad_image_id" });
+    }
+    const got = await fetchAtlasImage(env, request, id);
+    if (got.err) return got.err;
+    buf = got.buf;
+  } else {
+    buf = new Uint8Array(await request.arrayBuffer());
+  }
+
   if (!buf.length) return fail(400, "Empty upload.", { code: "empty" });
   if (buf.length > MAX_BYTES) {
     return fail(413, `Image is larger than ${MAX_BYTES / 1024 / 1024} MB.`, { code: "too_large" });

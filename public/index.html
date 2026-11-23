@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b1836">
 <title>Retina OCT — searchable OCT image atlas</title>
 <meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations, model-inferred predictions, and clinical metadata.">
-<link rel="stylesheet" href="styles.css?v=fc3e2bd2">
+<link rel="stylesheet" href="styles.css?v=c5b9e84c">
 <link rel="icon" href="favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -589,6 +589,113 @@ function vrfSwitch(b, m){
   return `<div class="vrf">${btn("correct","Mark correct")}${btn("incorrect","Mark incorrect")}</div>`;
 }
 
+/* ─── influence maps on an atlas scan ───
+   The model sees a centre-cropped square of the shorter side, so the map
+   covers that square and not the whole frame. For a 504x496 OLIVES scan that
+   is 98% of it, but the outline is drawn anyway rather than assumed, because
+   nothing guarantees every scan in the corpus has that shape. */
+let atlasMaps=null, atlasActive=null, atlasBusy=false;
+
+function atlasRects(){
+  const wrap=$(".detail-img"), img=wrap&&wrap.querySelector("img");
+  if(!img||!img.naturalWidth||!img.clientWidth) return null;
+  const bw=img.clientWidth, bh=img.clientHeight;
+  const side=Math.min(bw,bh);
+  return { bw, bh, side, cx:(bw-side)/2, cy:(bh-side)/2,
+           cropped: Math.abs(img.naturalWidth-img.naturalHeight) > 1 };
+}
+function atlasClear(){
+  const cv=$("#atlas-salmap"); if(cv){ cv.hidden=true; cv.getContext("2d").clearRect(0,0,cv.width,cv.height); }
+  const note=$("#atlas-note"); if(note) note.remove();
+  document.querySelectorAll(".why-at.on").forEach(b=>{b.classList.remove("on");b.textContent="Why this prediction?";});
+  atlasActive=null;
+}
+function atlasDraw(key){
+  const cv=$("#atlas-salmap"), r=atlasRects();
+  if(!cv||!r||!atlasMaps||!atlasMaps[key]) return false;
+  cv.width=r.bw; cv.height=r.bh; cv.hidden=false;
+  const ctx=cv.getContext("2d");
+  ctx.clearRect(0,0,r.bw,r.bh);
+  const v=atlasMaps[key], n=Math.round(Math.sqrt(v.length)), cell=r.side/n;
+  for(let i=0;i<v.length;i++){
+    const a=v[i];
+    if(a<0.12) continue;                       // leave untouched areas clear
+    ctx.fillStyle=`rgba(255,${Math.round(190-120*a)},40,${(0.14+0.5*a).toFixed(3)})`;
+    ctx.fillRect(r.cx+(i%n)*cell, r.cy+Math.floor(i/n)*cell, cell+0.6, cell+0.6);
+  }
+  ctx.strokeStyle="rgba(255,255,255,.55)"; ctx.lineWidth=1.5;
+  ctx.strokeRect(r.cx,r.cy,r.side,r.side);     // exactly what the model saw
+  return true;
+}
+function atlasNote(label){
+  const r=atlasRects();
+  return `<div class="sal-note" id="atlas-note">
+    <b>What the highlight means</b>
+    <span>The shaded areas are the parts of this scan that the model's result for
+    <em>${esc(label)}</em> depended on most. We blur one small patch at a time, run the
+    scan through again, and measure how far the answer moves. Blur a patch that mattered
+    and the answer shifts, so that patch is shaded; blur one that did not and it stays clear.</span>
+    <span>It shows <b>where</b> the model responded, not <b>what</b> it recognised — it cannot
+    name structures. It works in blocks of roughly a fiftieth of the image, so it points at a
+    region rather than a precise spot.${r&&r.cropped
+      ? " The white outline marks the square that was analysed; anything outside it was cropped away before the model saw this scan."
+      : ""}</span></div>`;
+}
+
+async function atlasWhy(btn, m){
+  const key=btn.dataset.bio, label=btn.dataset.label;
+  if(atlasActive===key){ atlasClear(); return; }
+  if(atlasBusy) return;
+  if(!atlasMaps){
+    atlasBusy=true;
+    const old=btn.textContent;
+    btn.textContent="Working it out…"; btn.disabled=true;
+    try{
+      const r=await fetch("/api/explain",{ method:"POST",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({ image_id:m.id }) });
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok || !d.maps) throw new Error(d.error || `Request failed (${r.status}).`);
+      atlasMaps=d.maps;
+    }catch(err){
+      btn.textContent=old; btn.disabled=false; atlasBusy=false;
+      const w=document.createElement("div");
+      w.className="sal-note"; w.id="atlas-note";
+      w.textContent=String(err.message||err);
+      btn.closest(".bio").after(w);
+      return;
+    }
+    btn.textContent=old; btn.disabled=false; atlasBusy=false;
+  }
+  atlasClear();
+  if(!atlasMaps[key]){
+    const w=document.createElement("div");
+    w.className="sal-note"; w.id="atlas-note";
+    w.textContent="Blurring any part of this scan left that result unchanged, so there is no region to point at.";
+    btn.closest(".bio").after(w);
+    atlasActive=key; btn.classList.add("on"); btn.textContent="Hide highlight";
+    return;
+  }
+  atlasDraw(key);
+  btn.closest(".bio").insertAdjacentHTML("afterend", atlasNote(label));
+  atlasActive=key;
+  btn.classList.add("on"); btn.textContent="Hide highlight";
+  $("#atlas-salmap").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+window.addEventListener("resize",()=>{ if(atlasActive) atlasDraw(atlasActive); });
+
+/* Only on model-labelled scans. On an expert-annotated scan the values are a
+   clinician's judgement, so there is no model prediction to explain and
+   offering one would imply the model made the call. */
+function whyBtn(b, m){
+  if(m.label_source!=="model" || b.unavailable==="not_predictable" || b.present==null) return "";
+  // Wrapped: the wrapper takes the full flex line so the button drops below
+  // the value, while the button itself stays the width of its own text. A
+  // flex-basis of 100% on the button would stretch it across the panel.
+  return `<div class="why-wrap"><button class="why-at" data-bio="${b.key}"
+    data-label="${esc(b.label)}">Why this prediction?</button></div>`;
+}
+
 function bioRow(b, m){
   if(b.unavailable==="not_predictable")
     return `<div class="bio off"><span class="dot u"></span>${b.label}
@@ -596,7 +703,7 @@ function bioRow(b, m){
   if(b.source==="model"){
     const pct=b.confidence!=null?Math.round(b.confidence*100):null;
     return `<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}
-      <span class="v">${b.present?"Likely":"Unlikely"}${pct!=null?` <em>${pct}%</em>`:""}</span>${vrfSwitch(b,m)}</div>`;
+      <span class="v">${b.present?"Likely":"Unlikely"}${pct!=null?` <em>${pct}%</em>`:""}</span>${vrfSwitch(b,m)}${whyBtn(b,m)}</div>`;
   }
   return `<div class="bio"><span class="dot ${b.present?"y":"n"}"></span>${b.label}
     <span class="v">${b.present?"Present":"Absent"}</span>${vrfSwitch(b,m)}</div>`;
@@ -619,7 +726,7 @@ function modelFoot(m){
   d.innerHTML=`
     <div class="detail-head"><h2>OCT_${String(m.id).padStart(7,"0")}</h2>
       <button class="icon-btn" id="close"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></div>
-    <div class="detail-img">${u?`<img src="${u}" alt="">`:`<div style="display:grid;place-items:center;height:100%;color:#3a4358;font-size:12px">Image hosting pending</div>`}</div>
+    <div class="detail-img">${u?`<img src="${u}" alt=""><canvas id="atlas-salmap" aria-hidden="true" hidden></canvas>`:`<div style="display:grid;place-items:center;height:100%;color:#3a4358;font-size:12px">Image hosting pending</div>`}</div>
     <div class="tabs"><button class="tab on" data-t="d">Details</button>
       <button class="tab" data-t="b">Biomarkers${m.has_labels?` (${present})`:""}</button></div>
     <div id="tab-d" class="rows">
@@ -660,6 +767,8 @@ function modelFoot(m){
     $("#tab-d").hidden = t.dataset.t!=="d"; $("#tab-b").hidden = t.dataset.t!=="b";
   });
   d.querySelectorAll(".strip [data-id]").forEach(el=>el.onclick=()=>openDetail(+el.dataset.id));
+d.querySelectorAll(".why-at").forEach(btn=>btn.onclick=()=>atlasWhy(btn,m));
+
 d.querySelectorAll(".vrf-b").forEach(btn=>btn.onclick=async ()=>{
     const group = btn.parentElement;
     const was = btn.classList.contains("on");
