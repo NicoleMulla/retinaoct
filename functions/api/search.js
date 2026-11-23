@@ -91,33 +91,43 @@ async function handle({ request, env }) {
     // `bio=drt_me` search). Grouping by all three dimensions at once returns a
     // few dozen rows -- every distinct trial/eye/visit combination in the
     // subset -- from which each facet and the total are derived in JS below.
+    /* ONE aggregate scan, not two. The dimension counts and the sixteen
+       biomarker sums were separate queries over the same filtered subset,
+       each reading every matching row — measured at 153,174 rows apiece for a
+       text search. Computing both in a single GROUP BY reads those rows once
+       and costs nothing extra per aggregate, so a filtered search drops from
+       three full scans to two with no loss of information.
+
+       Always joining biomarkers, even when the filter does not need it: the
+       sums require it, and one pass over the join is cheaper than a second
+       pass over images alone. */
+    const aggBase = needBioJoin ? base
+      : `FROM images i LEFT JOIN biomarkers b ON b.image_id = i.id ${where}`;
     const tasks = [
       env.DB.prepare(
-        `SELECT i.trial AS trial, i.eye AS eye, i.visit AS visit, COUNT(*) AS n
-         ${base} GROUP BY i.trial, i.eye, i.visit`
+        `SELECT i.trial AS trial, i.eye AS eye, i.visit AS visit, COUNT(*) AS n,
+                ${BIOMARKERS.map(([k]) => `SUM(COALESCE(b.${k},0)) AS ${k}`).join(", ")},
+                SUM(CASE WHEN i.label_source='expert' THEN 1 ELSE 0 END) AS labelled,
+                SUM(CASE WHEN i.label_source='model'  THEN 1 ELSE 0 END) AS modelled
+         ${aggBase} GROUP BY i.trial, i.eye, i.visit`
       ).bind(...bind).all(),
       rowsQ.all(),
     ];
-    if (wantFacets) {
-      const bioBase = needBioJoin ? base : `FROM images i LEFT JOIN biomarkers b ON b.image_id = i.id ${where}`;
-      tasks.push(
-        env.DB.prepare(
-          `SELECT ${BIOMARKERS.map(([k]) => `SUM(COALESCE(b.${k},0)) AS ${k}`).join(", ")},
-                  SUM(CASE WHEN i.label_source='expert' THEN 1 ELSE 0 END) AS labelled,
-                  SUM(CASE WHEN i.label_source='model'  THEN 1 ELSE 0 END) AS modelled ${bioBase}`
-        ).bind(...bind).all()
-      );
-    }
-    const [dimsQ, rows, fBioQ] = await Promise.all(tasks);
+    const [dimsQ, rows] = await Promise.all(tasks);
     auditRows(rows.meta, "results_filtered", debug);
-    auditRows(dimsQ.meta, "count_and_dim_facets", debug);
-    if (wantFacets) auditRows(fBioQ.meta, "facet_biomarkers", debug);
+    auditRows(dimsQ.meta, "aggregates", debug);
 
-    // Roll the grouped rows up into one list per dimension.
+    // Roll the grouped rows up into one list per dimension, and add the
+    // biomarker sums across groups.
     let total = 0;
     const tally = { trial: new Map(), eye: new Map(), visit: new Map() };
+    const fBio = { labelled: 0, modelled: 0 };
+    for (const [k] of BIOMARKERS) fBio[k] = 0;
     for (const r of dimsQ.results) {
       total += r.n;
+      fBio.labelled += r.labelled || 0;
+      fBio.modelled += r.modelled || 0;
+      for (const [k] of BIOMARKERS) fBio[k] += r[k] || 0;
       for (const dim of ["trial", "eye", "visit"]) {
         const v = r[dim];
         if (v == null || v === "") continue;
@@ -128,7 +138,6 @@ async function handle({ request, env }) {
       const out = [...tally[dim]].map(([v, n]) => ({ v, n })).sort((a, b) => b.n - a.n);
       return limit ? out.slice(0, limit) : out;
     };
-    const fBio = fBioQ ? fBioQ.results[0] : null;
 
     return json({
       total,
@@ -139,9 +148,9 @@ async function handle({ request, env }) {
         trial: facet("trial"),
         eye: facet("eye"),
         visit: facet("visit", 20),
-        labelled: fBio ? fBio.labelled || 0 : 0,
-        modelled: fBio ? fBio.modelled || 0 : 0,
-        biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio ? fBio[k] || 0 : 0 }))
+        labelled: fBio.labelled,
+        modelled: fBio.modelled,
+        biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio[k] || 0 }))
                               .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
       } : null,
     }, 86400);

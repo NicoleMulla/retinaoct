@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0b1836">
 <title>Retina OCT — searchable OCT image atlas</title>
 <meta name="description" content="Search and explore retinal OCT images with expert biomarker annotations, model-inferred predictions, and clinical metadata.">
-<link rel="stylesheet" href="styles.css?v=c5b9e84c">
+<link rel="stylesheet" href="styles.css?v=5091c309">
 <link rel="icon" href="favicon.svg?v=e17356e5" type="image/svg+xml">
 </head>
 <body>
@@ -879,7 +879,21 @@ function syncMobileBar(total){
   }
 }
 
-$("#search").onsubmit=e=>{e.preventDefault();state.q=$("#q").value.trim();state.page=1;load()};
+$("#search").onsubmit=e=>{
+  e.preventDefault();
+  const v=$("#q").value.trim();
+  // Searching one or two characters scans the whole corpus to return nearly
+  // all of it. The server ignores such a term; say so rather than appearing
+  // to search and silently doing nothing.
+  const warn=$("#q-warn");
+  if(v.length>0 && v.length<3){
+    if(!warn) $("#q").insertAdjacentHTML("afterend",
+      `<span id="q-warn" class="q-warn">Type at least 3 characters</span>`);
+    return;
+  }
+  if(warn) warn.remove();
+  state.q=v; state.page=1; load();
+};
 $("#sort").onchange=e=>{state.sort=e.target.value;state.page=1;load({noFacets:true})};
 $("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:[],source:[],verified:false,
   trial_not:[],eye_not:[],visit_not:[],bio_not:[],

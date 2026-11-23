@@ -98,8 +98,13 @@ export function buildFilter(url) {
     if (!Number.isNaN(v)) { where.push(`i.${col} ${op} ?`); bind.push(v); }
   }
 
+  /* A leading-wildcard LIKE cannot use an index, so every text search is a
+     full scan of 153,045 rows — measured at 5,821,125 rows across 13 searches,
+     which on its own exceeds the daily allowance. One or two characters match
+     almost everything while costing exactly as much as a useful search, so
+     they are not worth a scan. Three is the shortest term that narrows. */
   const q = (p.get("q") || "").trim();
-  if (q) {
+  if (q && q.length >= 3) {
     where.push("(i.path LIKE ? OR i.subject LIKE ? OR CAST(i.patient_id AS TEXT) = ?)");
     bind.push(`%${q}%`, `%${q}%`, q);
   }
