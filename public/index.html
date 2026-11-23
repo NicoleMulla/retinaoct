@@ -627,23 +627,8 @@ function atlasDraw(key){
   ctx.strokeRect(r.cx,r.cy,r.side,r.side);     // exactly what the model saw
   return true;
 }
-function atlasNote(label){
-  const r=atlasRects();
-  return `<div class="sal-note" id="atlas-note">
-    <b>What the highlight means</b>
-    <span>The shaded areas are the parts of this scan that the model's result for
-    <em>${esc(label)}</em> depended on most. We blur one small patch at a time, run the
-    scan through again, and measure how far the answer moves. Blur a patch that mattered
-    and the answer shifts, so that patch is shaded; blur one that did not and it stays clear.</span>
-    <span>It shows <b>where</b> the model responded, not <b>what</b> it recognised — it cannot
-    name structures. It works in blocks of roughly a fiftieth of the image, so it points at a
-    region rather than a precise spot.${r&&r.cropped
-      ? " The white outline marks the square that was analysed; anything outside it was cropped away before the model saw this scan."
-      : ""}</span></div>`;
-}
-
 async function atlasWhy(btn, m){
-  const key=btn.dataset.bio, label=btn.dataset.label;
+  const key=btn.dataset.bio;
   if(atlasActive===key){ atlasClear(); return; }
   if(atlasBusy) return;
   if(!atlasMaps){
@@ -676,8 +661,11 @@ async function atlasWhy(btn, m){
     atlasActive=key; btn.classList.add("on"); btn.textContent="Hide highlight";
     return;
   }
+  /* No explanatory paragraph here. The detail panel is a narrow column and
+     the text pushed the scan itself off screen, which defeats the point of
+     looking at a map. The long-form explanation stays on /analyze, where the
+     column is wide enough for it. */
   atlasDraw(key);
-  btn.closest(".bio").insertAdjacentHTML("afterend", atlasNote(label));
   atlasActive=key;
   btn.classList.add("on"); btn.textContent="Hide highlight";
   $("#atlas-salmap").scrollIntoView({behavior:"smooth",block:"nearest"});
