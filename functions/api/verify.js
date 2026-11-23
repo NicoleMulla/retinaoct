@@ -36,19 +36,33 @@ const REVIEWER_RE = /^[A-Za-z0-9._-]{2,64}$/;
 const fail = (status, error, extra = {}) =>
   Response.json({ error, ...extra }, { status, headers: { "cache-control": "no-store" } });
 
-async function enabled(env) {
+/* The switch lives in D1, but reading it must not be the thing that stops a
+   reviewer working. When D1 refuses a read because the daily allowance is
+   spent, fall back to /api/config, which is edge-cached and so can still
+   answer. Writes have their own separate allowance and are unaffected by a
+   read outage, so a verdict can still be recorded.
+
+   Any other failure still fails closed: this switch gates writes to a public
+   endpoint, and "could not tell" must mean "no" everywhere except the one
+   case we can positively verify by other means. */
+async function enabled(env, request) {
   try {
     const row = await env.DB.prepare(
       "SELECT value FROM app_settings WHERE key = 'verification_enabled'"
     ).first();
     return !!row && String(row.value) === "1";
-  } catch {
-    return false;
+  } catch (e) {
+    if (!String(e && e.message || e).includes("row read limit")) return false;
+    try {
+      const r = await fetch(new URL("/api/config", request.url).toString());
+      if (!r.ok) return false;
+      return (await r.json()).verification === true;
+    } catch { return false; }
   }
 }
 
 export async function onRequestPost({ request, env }) {
-  if (!(await enabled(env))) {
+  if (!(await enabled(env, request))) {
     return fail(403, "Verification mode is not enabled.", { code: "disabled" });
   }
 
