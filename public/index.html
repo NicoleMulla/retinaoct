@@ -153,6 +153,7 @@
   <div class="foot-row"><span>&copy; 2026 Retina OCT</span><span>retinaoct.com</span></div>
 </footer>
 
+<script src="/corpus.js?v=1"></script>
 <script>
 const IMG_BASE = "/img";             // proxied from B2 (read-only, web/ prefix)
 const PER = 24;
@@ -332,9 +333,15 @@ async function refreshVerifiedCount(){
 
 async function load(opts={}){
   $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">Loading…</div>`;
-  const r=await fetch("/api/search?"+qs(opts));
-  if(!r.ok){ $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">${await errText(r)}</div>`; return; }
-  const d=await r.json();
+  let d;
+  if(window.Corpus && Corpus.ready()){
+    // Entirely local: no request, no D1 row reads, nothing to exhaust.
+    d = Corpus.search(state, state.page, PER, !opts.noFacets);
+  } else {
+    const r=await fetch("/api/search?"+qs(opts));
+    if(!r.ok){ $("#grid").innerHTML=`<div class="empty" style="grid-column:1/-1">${await errText(r)}</div>`; return; }
+    d = await r.json();
+  }
   render(d); if(d.facets) renderFacets(d.facets,d.total);
 }
 
@@ -705,8 +712,29 @@ function modelFoot(m){
 
   if(isMobile()) openSheet($("#detail"));
   const r=await fetch("/api/image/"+id+"?v="+API_V+(verifyOn?"&verify=1&reviewer="+encodeURIComponent(REVIEWER):""));
-  if(!r.ok){ d.innerHTML=`<div class="empty">${await errText(r, `Could not load image ${id}.`)}</div>`; return; }
-  const m=await r.json();
+  let m;
+  if(r.ok){ m = await r.json(); }
+  else if(window.Corpus && Corpus.ready()){
+    /* D1 could not answer — usually its daily read allowance. The corpus
+       holds the scan and its biomarkers, so the panel still opens; model
+       confidences and patient demographics are simply absent rather than the
+       whole view failing. */
+    const base = Corpus.row(id-1);
+    m = Object.assign(base, {
+      biomarkers: Corpus.biomarkersFor(id-1),
+      has_labels: base.biomarker_count>0 || base.label_source==="model",
+      same_eye: [],
+      provenance: base.label_source==="model"
+        ? { kind:"model", model:"NicoleMulla/retfound-olives-16bm",
+            caveat:"Model inference, not expert annotation. Research use only; not a medical device." }
+        : base.label_source==="rejected"
+        ? { kind:"rejected",
+            reason:"Outside the distribution the model was validated on; no predictions produced.",
+            caveat:"Absence of findings here means the model declined to judge, not that the retina is normal." }
+        : { kind:"expert", source:"OLIVES dataset expert annotation" },
+    });
+  }
+  else { d.innerHTML=`<div class="empty">${await errText(r, `Could not load image ${id}.`)}</div>`; return; }
   const u=imgUrl(m.full_key);
   const row=(icon,k,v)=>v==null||v===""?"":`<div class="row">${icon}<span class="k">${k}</span><span class="v">${v}</span></div>`;
   const present=m.biomarkers.filter(b=>b.present).length;
@@ -899,7 +927,7 @@ $("#clear").onclick=()=>{Object.assign(state,{q:"",trial:[],eye:[],visit:[],bio:
   trial_not:[],eye_not:[],visit_not:[],bio_not:[],
   bcva_min:"",bcva_max:"",cst_min:"",cst_max:"",page:1});$("#q").value="";load()};
 
-initVerify().then(load);
+Corpus.loadCorpus().then(initVerify).then(load);
 </script>
 </body>
 </html>
