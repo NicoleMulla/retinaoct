@@ -123,16 +123,24 @@ function facets(hits) {
     const f = C.flags[i];
     for (let b = 0; b < bm.length; b++) if (f & (1 << b)) bm[b]++;
   }
-  const list = (m, limit) => {
+  /* Stable where nothing is lost by it. Trial and eye are two values each, so
+     a fixed order costs nothing and stops them swapping places under the
+     pointer. Visits stay ranked by count because the sidebar shows only the
+     first few, and the most populated ones are the useful ones to offer. */
+  const byCount = (m, limit) => {
     const a = [...m].map(([v, n]) => ({ v, n })).sort((x, y) => y.n - x.n);
     return limit ? a.slice(0, limit) : a;
   };
+  const fixed = (m, order) => order.filter(v => m.has(v)).map(v => ({ v, n: m.get(v) }));
   return {
-    trial: list(trial), eye: list(eye), visit: list(visit, 20),
+    trial: fixed(trial, C.trial), eye: fixed(eye, C.eye), visit: byCount(visit, 20),
     labelled, modelled,
+    /* All sixteen, always, in a fixed order. Dropping the zeroes made the
+       control you had just used vanish, and re-sorting by count moved the
+       others under the pointer — so the list was never twice in the same
+       place. A count of 0 is information; an absent row is a puzzle. */
     biomarkers: C.biomarkers
-      .map((key, b) => ({ key, label: LABELS[key] || key, count: bm[b] }))
-      .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
+      .map((key, b) => ({ key, label: LABELS[key] || key, count: bm[b] })),
   };
 }
 

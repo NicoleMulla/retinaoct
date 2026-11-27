@@ -150,8 +150,9 @@ async function handle({ request, env }) {
         visit: facet("visit", 20),
         labelled: fBio.labelled,
         modelled: fBio.modelled,
-        biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio[k] || 0 }))
-                              .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
+        // Fixed order, zeroes included — the sidebar must not reshuffle or
+        // drop rows as a selection narrows. Matches public/corpus.js.
+        biomarkers: BIOMARKERS.map(([k, label]) => ({ key: k, label, count: fBio[k] || 0 })),
       } : null,
     }, 86400);
 
@@ -169,9 +170,8 @@ function shape(f) {
   return {
     trial: f.trial, eye: f.eye, visit: f.visit, labelled: f.labelled,
     modelled: f.modelled || 0,
-    biomarkers: Object.entries(f.biomarkers)
-      .map(([key, count]) => ({ key, label: LABEL[key] || key, count }))
-      .filter(x => x.count > 0).sort((a, b) => b.count - a.count),
+    biomarkers: BIOMARKERS.map(([key, label]) =>
+      ({ key, label, count: f.biomarkers[key] || 0 })),
   };
 }
 /**

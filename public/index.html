@@ -153,7 +153,7 @@
   <div class="foot-row"><span>&copy; 2026 Retina OCT</span><span>retinaoct.com</span></div>
 </footer>
 
-<script src="/corpus.js?v=1"></script>
+<script src="/corpus.js?v=3f6e5255"></script>
 <script>
 const IMG_BASE = "/img";             // proxied from B2 (read-only, web/ prefix)
 const PER = 24;
@@ -382,7 +382,8 @@ function render(d){
           ${r.bcva!=null?`<span class="tag g">BCVA ${Math.round(r.bcva)}</span>`:""}
         </div>
       </div></article>`;
-  }).join("") : `<div class="empty" style="grid-column:1/-1">No images match these filters.</div>`;
+  }).join("") : `<div class="empty" style="grid-column:1/-1"><b>0 images found</b><br>
+       No scan in the atlas matches every filter you have selected. Remove one to widen the search.</div>`;
 
   renderPager(Math.ceil(d.total/d.per_page)||1, d.page);
   syncMobileBar(d.total);
@@ -431,10 +432,13 @@ function renderFacets(f,total){
      it instead would bury it under sixteen others, so the row you are working
      with scrolls out of sight. Selected first, at zero if need be. */
   const rowsFor=(key,items,label)=>{
+    /* Order is whatever the server sent, and it does not depend on the
+       selection — no pulling chosen values to the top. Rows that are selected
+       but absent from the response are appended at zero so nothing a user
+       picked can disappear, but nothing already on screen moves. */
     const chosen=[...state[key],...notList(key)];
     const seen=items.map(i=>i.v);
-    const all=[...chosen.filter(v=>!seen.includes(v)).map(v=>({v,n:0})), ...items];
-    all.sort((a,b)=>(chosen.includes(b.v)?1:0)-(chosen.includes(a.v)?1:0));
+    const all=[...items, ...chosen.filter(v=>!seen.includes(v)).map(v=>({v,n:0}))];
     return all.map(i=>opt(key,i.v,label(i.v),i.n)).join("");
   };
 
